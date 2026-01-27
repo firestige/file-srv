@@ -7,12 +7,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tech.icc.filesrv.common.context.TaskContext;
+import tech.icc.filesrv.common.exception.InvalidTaskIdException;
+import tech.icc.filesrv.common.exception.TaskNotFoundException;
 import tech.icc.filesrv.common.vo.task.*;
 import tech.icc.filesrv.core.application.service.dto.PartETagDto;
 import tech.icc.filesrv.core.application.service.dto.TaskInfoDto;
 import tech.icc.filesrv.core.domain.events.TaskCompletedEvent;
 import tech.icc.filesrv.core.domain.events.TaskFailedEvent;
 import tech.icc.filesrv.core.domain.tasks.*;
+import tech.icc.filesrv.core.infra.cache.TaskCacheService;
+import tech.icc.filesrv.core.infra.cache.TaskIdValidator;
 import tech.icc.filesrv.core.infra.event.TaskEventPublisher;
 import tech.icc.filesrv.core.infra.file.LocalFileManager;
 import tech.icc.filesrv.core.infra.plugin.PluginNotFoundException;
@@ -29,12 +33,20 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * 任务服务
  * <p>
  * 处理异步上传任务的完整生命周期：创建 → 分片上传 → 完成/中止 → 状态查询。
  * 使用应用层 DTO（TaskInfoDto、PartETagDto），不依赖 API 层类型。
+ * <p>
+ * 集成缓存和防护机制：
+ * <ul>
+ *   <li>布隆过滤器快速过滤不存在的 taskId</li>
+ *   <li>本地缓存减少数据库访问</li>
+ *   <li>空值缓存防止缓存穿透</li>
+ * </ul>
  */
 @Service
 public class TaskService {
@@ -48,17 +60,23 @@ public class TaskService {
     private final PluginRegistry pluginRegistry;
     private final TaskEventPublisher eventPublisher;
     private final LocalFileManager localFileManager;
+    private final TaskCacheService cacheService;
+    private final TaskIdValidator idValidator;
 
     public TaskService(TaskRepository taskRepository,
                        StorageAdapter storageAdapter,
                        PluginRegistry pluginRegistry,
                        TaskEventPublisher eventPublisher,
-                       LocalFileManager localFileManager) {
+                       LocalFileManager localFileManager,
+                       TaskCacheService cacheService,
+                       TaskIdValidator idValidator) {
         this.taskRepository = taskRepository;
         this.storageAdapter = storageAdapter;
         this.pluginRegistry = pluginRegistry;
         this.eventPublisher = eventPublisher;
         this.localFileManager = localFileManager;
+        this.cacheService = cacheService;
+        this.idValidator = idValidator;
     }
 
     // ==================== 命令操作 ====================
@@ -90,6 +108,10 @@ public class TaskService {
         // 保存任务
         taskRepository.save(task);
 
+        // 注册到布隆过滤器并缓存
+        idValidator.register(task.getTaskId());
+        cacheService.cacheTask(task);
+
         log.info("Task created: taskId={}, fKey={}, callbacks={}", task.getTaskId(), fKey, callbacks);
 
         return TaskInfoDto.Pending.builder()
@@ -99,6 +121,7 @@ public class TaskService {
                 .partUploadUrls(null)
                 .build();
     }
+
 
     /**
      * 创建上传任务（简化版本）
@@ -133,6 +156,7 @@ public class TaskService {
             PartInfo partInfo = PartInfo.of(partNumber, etag, size);
             task.recordPart(partInfo);
             taskRepository.save(task);
+            updateTaskCache(task);
 
             log.debug("Part uploaded: taskId={}, partNumber={}, etag={}", taskId, partNumber, etag);
 
@@ -183,6 +207,7 @@ public class TaskService {
             // 更新任务状态
             task.completeUpload(finalPath, hash, totalSize, contentType, filename);
             taskRepository.save(task);
+            updateTaskCache(task);
 
             log.info("Upload completed: taskId={}, path={}", taskId, finalPath);
 
@@ -196,6 +221,7 @@ public class TaskService {
             log.error("Complete upload failed: taskId={}", taskId, e);
             task.markFailed(e.getMessage());
             taskRepository.save(task);
+            updateTaskCache(task);
             publishFailedEvent(task);
             throw e;
         } finally {
@@ -244,6 +270,7 @@ public class TaskService {
         // 更新状态
         task.abort();
         taskRepository.save(task);
+        updateTaskCache(task);
 
         log.info("Task aborted: taskId={}, reason={}", taskId, reason);
 
@@ -276,6 +303,7 @@ public class TaskService {
                                 task.getTaskId(), callbackName, failure.reason());
                         task.markFailed("Callback [" + callbackName + "] failed: " + failure.reason());
                         taskRepository.save(task);
+                        updateTaskCache(task);
                         publishFailedEvent(task);
                         return;
                     }
@@ -288,11 +316,13 @@ public class TaskService {
                     // 推进到下一个 callback
                     task.advanceCallback();
                     taskRepository.save(task);
+                    updateTaskCache(task);
 
                 } catch (PluginNotFoundException e) {
                     log.error("Plugin not found: {}", callbackName);
                     task.markFailed("Plugin not found: " + callbackName);
                     taskRepository.save(task);
+                    updateTaskCache(task);
                     publishFailedEvent(task);
                     return;
                 } catch (Exception e) {
@@ -300,6 +330,7 @@ public class TaskService {
                             task.getTaskId(), callbackName, e);
                     task.markFailed("Callback [" + callbackName + "] error: " + e.getMessage());
                     taskRepository.save(task);
+                    updateTaskCache(task);
                     publishFailedEvent(task);
                     return;
                 }
@@ -395,9 +426,65 @@ public class TaskService {
 
     // ==================== 辅助方法 ====================
 
+    /**
+     * 获取任务（带缓存和防护）
+     */
     private TaskAggregate getTaskOrThrow(String taskId) {
-        return taskRepository.findByTaskId(taskId)
-                .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
+        // 1. 格式校验
+        if (!idValidator.isValidFormat(taskId)) {
+            throw new InvalidTaskIdException(taskId);
+        }
+
+        // 2. 布隆过滤器快速检查
+        if (!idValidator.mightExist(taskId)) {
+            log.debug("Task not in bloom filter: taskId={}", taskId);
+            throw new TaskNotFoundException(taskId);
+        }
+
+        // 3. 检查空值缓存（防止缓存穿透）
+        if (cacheService.isNullCached(taskId)) {
+            log.debug("Task is null-cached: taskId={}", taskId);
+            throw new TaskNotFoundException(taskId);
+        }
+
+        // 4. 缓存查询
+        Optional<TaskAggregate> cached = cacheService.getTask(taskId);
+        if (cached.isPresent()) {
+            log.debug("Task cache hit: taskId={}", taskId);
+            return cached.get();
+        }
+
+        // 5. 数据库查询
+        log.debug("Task cache miss, querying database: taskId={}", taskId);
+        TaskAggregate task = taskRepository.findByTaskId(taskId)
+                .orElseGet(() -> {
+                    // 缓存空值，防止重复穿透
+                    cacheService.cacheNull(taskId);
+                    return null;
+                });
+
+        if (task == null) {
+            throw new TaskNotFoundException(taskId);
+        }
+
+        // 6. 回填缓存
+        cacheService.cacheTask(task);
+
+        return task;
+    }
+
+    /**
+     * 获取任务并更新缓存（用于写操作后）
+     */
+    private void updateTaskCache(TaskAggregate task) {
+        cacheService.cacheTask(task);
+    }
+
+    /**
+     * 失效任务缓存
+     */
+    private void evictTaskCache(String taskId) {
+        cacheService.evictTask(taskId);
     }
 
     private void validateCallbacks(String callbacks) {

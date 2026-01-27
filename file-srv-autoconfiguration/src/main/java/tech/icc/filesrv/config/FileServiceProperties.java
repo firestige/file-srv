@@ -12,6 +12,8 @@ public class FileServiceProperties {
 
     private TaskProperties task = new TaskProperties();
     private KafkaProperties kafka = new KafkaProperties();
+    private CacheProperties cache = new CacheProperties();
+    private BloomFilterProperties bloomFilter = new BloomFilterProperties();
 
     public TaskProperties getTask() {
         return task;
@@ -27,6 +29,22 @@ public class FileServiceProperties {
 
     public void setKafka(KafkaProperties kafka) {
         this.kafka = kafka;
+    }
+
+    public CacheProperties getCache() {
+        return cache;
+    }
+
+    public void setCache(CacheProperties cache) {
+        this.cache = cache;
+    }
+
+    public BloomFilterProperties getBloomFilter() {
+        return bloomFilter;
+    }
+
+    public void setBloomFilter(BloomFilterProperties bloomFilter) {
+        this.bloomFilter = bloomFilter;
     }
 
     /**
@@ -116,6 +134,70 @@ public class FileServiceProperties {
             public void setTaskFailed(String taskFailed) {
                 this.taskFailed = taskFailed;
             }
+        }
+    }
+
+    /**
+     * 缓存相关配置
+     */
+    public static class CacheProperties {
+
+        /**
+         * 最大缓存条目数
+         */
+        private int maxSize = 10000;
+
+        /**
+         * 缓存过期时间（秒）
+         */
+        private int expireSeconds = 30;
+
+        public int getMaxSize() {
+            return maxSize;
+        }
+
+        public void setMaxSize(int maxSize) {
+            this.maxSize = maxSize;
+        }
+
+        public int getExpireSeconds() {
+            return expireSeconds;
+        }
+
+        public void setExpireSeconds(int expireSeconds) {
+            this.expireSeconds = expireSeconds;
+        }
+    }
+
+    /**
+     * 布隆过滤器配置
+     */
+    public static class BloomFilterProperties {
+
+        /**
+         * 预期插入数量
+         */
+        private int expectedInsertions = 1000000;
+
+        /**
+         * 误判率 (False Positive Probability)
+         */
+        private double fpp = 0.01;
+
+        public int getExpectedInsertions() {
+            return expectedInsertions;
+        }
+
+        public void setExpectedInsertions(int expectedInsertions) {
+            this.expectedInsertions = expectedInsertions;
+        }
+
+        public double getFpp() {
+            return fpp;
+        }
+
+        public void setFpp(double fpp) {
+            this.fpp = fpp;
         }
     }
 }

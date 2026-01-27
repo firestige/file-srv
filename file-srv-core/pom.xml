@@ -41,6 +41,12 @@
             <artifactId>zero-allocation-hashing</artifactId>
             <version>0.16</version>
         </dependency>
+
+        <!-- Caffeine for local caching -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
     </dependencies>
 
 
