@@ -25,6 +25,12 @@
             <optional>true</optional>
         </dependency>
         
+        <!-- Slf4j Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        
         <!-- Huawei Cloud OBS SDK -->
         <dependency>
             <groupId>com.huaweicloud</groupId>

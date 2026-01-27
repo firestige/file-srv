@@ -1,5 +1,8 @@
 package tech.icc.filesrv.adapter.hcs;
 
+import com.obs.services.ObsClient;
+import com.obs.services.exception.ObsException;
+import com.obs.services.model.*;
 import lombok.extern.slf4j.Slf4j;
 import tech.icc.filesrv.core.domain.tasks.PartInfo;
 import tech.icc.filesrv.core.infra.storage.UploadSession;
@@ -16,28 +19,33 @@ import java.util.List;
 @Slf4j
 public class HcsUploadSession implements UploadSession {
 
+    private final ObsClient obsClient;
     private final String bucket;
     private final String objectKey;
     private final String uploadId;
-    
-    // TODO: 注入 ObsClient
-    // private final ObsClient obsClient;
 
     /**
      * 创建新的上传会话
      */
-    public HcsUploadSession(String bucket, String objectKey, String contentType) {
+    public HcsUploadSession(ObsClient obsClient, String bucket, String objectKey, String contentType) {
+        this.obsClient = obsClient;
         this.bucket = bucket;
         this.objectKey = objectKey;
-        // TODO: 调用 initiateMultipartUpload 获取 uploadId
         this.uploadId = initUpload(contentType);
         log.info("Upload session created: bucket={}, key={}, uploadId={}", bucket, objectKey, uploadId);
     }
 
     /**
      * 恢复已有的上传会话
+     * 
+     * @param obsClient OBS 客户端
+     * @param bucket    桶名称
+     * @param objectKey 对象键
+     * @param uploadId  上传 ID
+     * @param resume    恢复标志（用于区分构造函数）
      */
-    public HcsUploadSession(String bucket, String objectKey, String uploadId, boolean resume) {
+    public HcsUploadSession(ObsClient obsClient, String bucket, String objectKey, String uploadId, boolean resume) {
+        this.obsClient = obsClient;
         this.bucket = bucket;
         this.objectKey = objectKey;
         this.uploadId = uploadId;
@@ -45,12 +53,13 @@ public class HcsUploadSession implements UploadSession {
     }
 
     private String initUpload(String contentType) {
-        // TODO: 实现 OBS initiateMultipartUpload
-        // InitiateMultipartUploadRequest request = new InitiateMultipartUploadRequest(bucket, objectKey);
-        // request.setContentType(contentType);
-        // InitiateMultipartUploadResult result = obsClient.initiateMultipartUpload(request);
-        // return result.getUploadId();
-        throw new UnsupportedOperationException("OBS initiate upload not implemented yet");
+        InitiateMultipartUploadRequest request = new InitiateMultipartUploadRequest(bucket, objectKey);
+        ObjectMetadata metadata = new ObjectMetadata();
+        metadata.setContentType(contentType);
+        request.setMetadata(metadata);
+        
+        InitiateMultipartUploadResult result = obsClient.initiateMultipartUpload(request);
+        return result.getUploadId();
     }
 
     @Override
@@ -67,50 +76,56 @@ public class HcsUploadSession implements UploadSession {
     public String uploadPart(int partNumber, InputStream data, long size) {
         log.debug("Uploading part: uploadId={}, partNumber={}, size={}", uploadId, partNumber, size);
         
-        // TODO: 实现 OBS uploadPart
-        // UploadPartRequest request = new UploadPartRequest(bucket, objectKey, uploadId, partNumber, data, size);
-        // UploadPartResult result = obsClient.uploadPart(request);
-        // return normalizeETag(result.getEtag());
-        throw new UnsupportedOperationException("OBS upload part not implemented yet");
+        UploadPartRequest request = new UploadPartRequest(bucket, objectKey);
+        request.setUploadId(uploadId);
+        request.setPartNumber(partNumber);
+        request.setInput(data);
+        request.setPartSize(size);
+        
+        UploadPartResult result = obsClient.uploadPart(request);
+        String etag = normalizeETag(result.getEtag());
+        
+        log.debug("Part uploaded: uploadId={}, partNumber={}, etag={}", uploadId, partNumber, etag);
+        return etag;
     }
 
     @Override
     public String complete(List<PartInfo> parts) {
         log.info("Completing upload: uploadId={}, parts={}", uploadId, parts.size());
         
-        // 按 partNumber 排序
-        List<PartInfo> sortedParts = parts.stream()
+        // 按 partNumber 排序并转换为 OBS PartEtag
+        List<PartEtag> obsParts = parts.stream()
                 .sorted(Comparator.comparingInt(PartInfo::partNumber))
+                .map(p -> new PartEtag(p.etag(), p.partNumber()))
                 .toList();
         
-        // TODO: 实现 OBS completeMultipartUpload
-        // List<PartEtag> obsParts = sortedParts.stream()
-        //         .map(p -> new PartEtag(p.etag(), p.partNumber()))
-        //         .toList();
-        // CompleteMultipartUploadRequest request = 
-        //         new CompleteMultipartUploadRequest(bucket, objectKey, uploadId, obsParts);
-        // obsClient.completeMultipartUpload(request);
-        // return objectKey;
-        throw new UnsupportedOperationException("OBS complete upload not implemented yet");
+        CompleteMultipartUploadRequest request = new CompleteMultipartUploadRequest(
+                bucket, objectKey, uploadId, obsParts);
+        
+        CompleteMultipartUploadResult result = obsClient.completeMultipartUpload(request);
+        
+        log.info("Upload completed: uploadId={}, path={}, etag={}", 
+                uploadId, result.getObjectKey(), result.getEtag());
+        
+        return result.getObjectKey();
     }
 
     @Override
     public void abort() {
         log.info("Aborting upload: uploadId={}", uploadId);
         
-        // TODO: 实现 OBS abortMultipartUpload
-        // try {
-        //     AbortMultipartUploadRequest request = 
-        //             new AbortMultipartUploadRequest(bucket, objectKey, uploadId);
-        //     obsClient.abortMultipartUpload(request);
-        // } catch (ObsException e) {
-        //     // 幂等处理：如果上传已不存在，忽略错误
-        //     if (!"NoSuchUpload".equals(e.getErrorCode())) {
-        //         throw e;
-        //     }
-        //     log.debug("Upload already aborted or completed: uploadId={}", uploadId);
-        // }
-        throw new UnsupportedOperationException("OBS abort upload not implemented yet");
+        try {
+            AbortMultipartUploadRequest request = new AbortMultipartUploadRequest(bucket, objectKey, uploadId);
+            obsClient.abortMultipartUpload(request);
+            log.info("Upload aborted: uploadId={}", uploadId);
+        } catch (ObsException e) {
+            // 幂等处理：如果上传已不存在，忽略错误
+            if ("NoSuchUpload".equals(e.getErrorCode())) {
+                log.debug("Upload already aborted or completed: uploadId={}", uploadId);
+            } else {
+                throw e;
+            }
+        }
     }
 
     @Override
@@ -120,12 +135,12 @@ public class HcsUploadSession implements UploadSession {
     }
 
     /**
-     * 标准化 ETag（去除引号）
+     * 标准化 ETag（移除引号）
      */
     private String normalizeETag(String etag) {
-        if (etag != null && etag.startsWith("\"") && etag.endsWith("\"")) {
-            return etag.substring(1, etag.length() - 1);
+        if (etag == null) {
+            return null;
         }
-        return etag;
+        return etag.replace("\"", "");
     }
 }

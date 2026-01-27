@@ -1,6 +1,9 @@
 package tech.icc.filesrv.adapter.hcs;
 
+import com.obs.services.ObsClient;
+import com.obs.services.model.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import tech.icc.filesrv.core.infra.storage.StorageAdapter;
 import tech.icc.filesrv.core.infra.storage.StorageResult;
@@ -8,24 +11,24 @@ import tech.icc.filesrv.core.infra.storage.UploadSession;
 
 import java.io.InputStream;
 import java.time.Duration;
+import java.util.Date;
 
 /**
  * 华为云 OBS 存储适配器实现
- * <p>
- * TODO: 实现具体的 OBS SDK 调用
  */
 @Slf4j
 public class HcsObsAdapter implements StorageAdapter {
 
     private static final String ADAPTER_TYPE = "HCS_OBS";
 
+    private final ObsClient obsClient;
     private final String bucket;
-    
-    // TODO: 注入 ObsClient
-    // private final ObsClient obsClient;
+    private final Duration defaultPresignedExpiry;
 
-    public HcsObsAdapter(String bucket) {
+    public HcsObsAdapter(ObsClient obsClient, String bucket, Duration defaultPresignedExpiry) {
+        this.obsClient = obsClient;
         this.bucket = bucket;
+        this.defaultPresignedExpiry = defaultPresignedExpiry;
     }
 
     @Override
@@ -35,44 +38,81 @@ public class HcsObsAdapter implements StorageAdapter {
 
     @Override
     public StorageResult upload(String path, InputStream content, String contentType) {
-        // TODO: 实现 OBS 上传
-        throw new UnsupportedOperationException("HCS OBS upload not implemented yet");
+        log.debug("Uploading to OBS: bucket={}, path={}, contentType={}", bucket, path, contentType);
+        
+        PutObjectRequest request = new PutObjectRequest(bucket, path, content);
+        ObjectMetadata metadata = new ObjectMetadata();
+        metadata.setContentType(contentType);
+        request.setMetadata(metadata);
+        
+        PutObjectResult result = obsClient.putObject(request);
+        
+        log.info("OBS upload completed: bucket={}, path={}, etag={}", bucket, path, result.getEtag());
+        
+        // size 由调用方提供，这里返回 null
+        return StorageResult.of(path, normalizeETag(result.getEtag()), null);
     }
 
     @Override
     public Resource download(String path) {
-        // TODO: 实现 OBS 下载
-        throw new UnsupportedOperationException("HCS OBS download not implemented yet");
+        log.debug("Downloading from OBS: bucket={}, path={}", bucket, path);
+        
+        ObsObject obsObject = obsClient.getObject(bucket, path);
+        InputStream inputStream = obsObject.getObjectContent();
+        
+        return new InputStreamResource(inputStream);
     }
 
     @Override
     public void delete(String path) {
-        // TODO: 实现 OBS 删除
-        throw new UnsupportedOperationException("HCS OBS delete not implemented yet");
+        log.debug("Deleting from OBS: bucket={}, path={}", bucket, path);
+        
+        obsClient.deleteObject(bucket, path);
+        
+        log.info("OBS delete completed: bucket={}, path={}", bucket, path);
     }
 
     @Override
     public boolean exists(String path) {
-        // TODO: 实现 OBS 存在检查
-        throw new UnsupportedOperationException("HCS OBS exists not implemented yet");
+        log.debug("Checking existence in OBS: bucket={}, path={}", bucket, path);
+        
+        return obsClient.doesObjectExist(bucket, path);
     }
 
     @Override
     public String generatePresignedUrl(String path, Duration expiry) {
-        // TODO: 实现 OBS 预签名 URL
-        throw new UnsupportedOperationException("HCS OBS presigned URL not implemented yet");
+        Duration actualExpiry = expiry != null ? expiry : defaultPresignedExpiry;
+        log.debug("Generating presigned URL: bucket={}, path={}, expiry={}", bucket, path, actualExpiry);
+        
+        TemporarySignatureRequest request = new TemporarySignatureRequest(HttpMethodEnum.GET, actualExpiry.getSeconds());
+        request.setBucketName(bucket);
+        request.setObjectKey(path);
+        
+        TemporarySignatureResponse response = obsClient.createTemporarySignature(request);
+        
+        return response.getSignedUrl();
     }
 
     @Override
     public UploadSession beginUpload(String path, String contentType) {
         log.info("Beginning upload session: bucket={}, path={}, contentType={}", bucket, path, contentType);
-        return new HcsUploadSession(bucket, path, contentType);
+        return new HcsUploadSession(obsClient, bucket, path, contentType);
     }
 
     @Override
     public UploadSession resumeUpload(String path, String sessionId) {
         log.debug("Resuming upload session: bucket={}, path={}, sessionId={}", bucket, path, sessionId);
-        return new HcsUploadSession(bucket, path, sessionId, true);
+        return new HcsUploadSession(obsClient, bucket, path, sessionId, true);
+    }
+
+    /**
+     * 标准化 ETag（移除引号）
+     */
+    private String normalizeETag(String etag) {
+        if (etag == null) {
+            return null;
+        }
+        return etag.replace("\"", "");
     }
 }
 
