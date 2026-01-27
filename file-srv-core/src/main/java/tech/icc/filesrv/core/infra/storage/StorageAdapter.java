@@ -1,4 +1,4 @@
-package tech.icc.filesrv.infra.storage;
+package tech.icc.filesrv.core.infra.storage;
 
 public interface StorageAdapter {
 }

@@ -1,21 +1,25 @@
 package tech.icc.filesrv.core.application.entrypoint.model;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import lombok.Builder;
+import tech.icc.filesrv.common.vo.task.DerivedFile;
+import tech.icc.filesrv.common.vo.task.FailureDetail;
+import tech.icc.filesrv.common.vo.task.FileRequest;
+import tech.icc.filesrv.common.vo.task.TaskSummary;
+import tech.icc.filesrv.common.vo.task.UploadProgress;
 
 import java.time.Instant;
 import java.util.List;
 
 /**
- * 任务响应的密封接口，根据任务状态返回不同的响应结构。
+ * Task response sealed interface - returns different response structures based on task status.
  * <p>
- * 使用场景：
+ * Usage:
  * <ul>
- *   <li>createUploadTask - 返回 Pending</li>
- *   <li>getTaskDetail - 根据实际状态返回对应类型</li>
+ *   <li>createUploadTask - returns Pending</li>
+ *   <li>getTaskDetail - returns corresponding type based on actual status</li>
  * </ul>
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "status")
@@ -30,76 +34,10 @@ public sealed interface TaskResponse
         permits TaskResponse.Pending, TaskResponse.InProgress, TaskResponse.Completed,
         TaskResponse.Failed, TaskResponse.Aborted {
 
-    // ==================== 共享组件 ====================
+    // ==================== Status Implementations ====================
 
     /**
-     * 任务摘要信息 - 包含任务身份标识和调度信息
-     */
-    @Builder
-    record TaskSummary(
-            String taskId,
-            String uploadId,
-            Instant createdAt,
-            Instant expiresAt
-    ) {}
-
-    /**
-     * 文件请求信息 - 用户创建任务时提交的原始请求
-     */
-    @Builder
-    record FileRequest(
-            String filename,
-            String contentType,
-            Long size,
-            String checksum,
-            String location
-    ) {}
-
-    /**
-     * 上传进度信息
-     */
-    @Builder
-    record UploadProgress(
-            int totalParts,
-            int uploadedParts,
-            long uploadedBytes,
-            List<PartInfo> parts
-    ) {
-        @Builder
-        public record PartInfo(
-                int partNumber,
-                long size,
-                String checksum,
-                Instant uploadedAt
-        ) {}
-    }
-
-    /**
-     * 失败详情
-     */
-    @Builder
-    record FailureDetail(
-            String errorCode,
-            String errorMessage,
-            Instant failedAt
-    ) {}
-
-    /**
-     * 衍生文件信息 - 如缩略图、转码文件等
-     */
-    @Builder
-    record DerivedFile(
-            String type,
-            String fileId,
-            String path,
-            String contentType,
-            Long size
-    ) {}
-
-    // ==================== 状态实现 ====================
-
-    /**
-     * 等待上传状态 - createUploadTask 的响应也使用此类型
+     * Pending status - also used for createUploadTask response
      */
     @Builder
     record Pending(
@@ -110,7 +48,7 @@ public sealed interface TaskResponse
     ) implements TaskResponse {}
 
     /**
-     * 上传中状态
+     * In progress status
      */
     @Builder
     record InProgress(
@@ -120,7 +58,7 @@ public sealed interface TaskResponse
     ) implements TaskResponse {}
 
     /**
-     * 上传完成状态
+     * Completed status
      */
     @Builder
     record Completed(
@@ -130,7 +68,7 @@ public sealed interface TaskResponse
     ) implements TaskResponse {}
 
     /**
-     * 上传失败状态
+     * Failed status
      */
     @Builder
     record Failed(
@@ -141,7 +79,7 @@ public sealed interface TaskResponse
     ) implements TaskResponse {}
 
     /**
-     * 上传中止状态
+     * Aborted status
      */
     @Builder
     record Aborted(
