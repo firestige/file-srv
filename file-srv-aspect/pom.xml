@@ -11,5 +11,26 @@
 
     <artifactId>file-srv-aspect</artifactId>
 
+    <dependencies>
+        <dependency>
+            <groupId>tech.icc</groupId>
+            <artifactId>file-srv-core</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Spring AOP -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+        <!-- Servlet API for HttpServletRequest -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
 
 </project>
