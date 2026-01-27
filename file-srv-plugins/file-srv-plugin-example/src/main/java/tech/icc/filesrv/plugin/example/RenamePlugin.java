@@ -22,7 +22,7 @@ public class RenamePlugin implements SharedPlugin {
         String pattern = ctx.getPluginString(PLUGIN_NAME, "pattern")
                 .orElse("{filename}");
 
-        // TODO: 实现重命名逻辑
+        // 执行 pattern 替换生成新文件名
         String originalName = ctx.getString(TaskContext.KEY_FILENAME).orElse("unknown");
         String newName = pattern
                 .replace("{filename}", originalName)

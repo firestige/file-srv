@@ -31,6 +31,7 @@ import tech.icc.filesrv.common.exception.FileNotFoundException;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
 import tech.icc.filesrv.core.application.entrypoint.assembler.FileInfoAssembler;
 import tech.icc.filesrv.core.application.entrypoint.model.FileInfoResponse;
+import tech.icc.filesrv.core.application.entrypoint.model.FileUploadRequest;
 import tech.icc.filesrv.core.application.entrypoint.model.MetaQueryRequest;
 import tech.icc.filesrv.core.application.entrypoint.support.FileResponseBuilder;
 import tech.icc.filesrv.core.application.service.FileService;
@@ -175,14 +176,14 @@ public class FileController {
      */
     @PostMapping("/upload")
     public ResponseEntity<Result<FileInfoResponse>> uploadFile(
-            @ModelAttribute FileInfoResponse fileInfo,
+            @ModelAttribute FileUploadRequest request,
             @RequestParam("file") MultipartFile file) {
         log.info("[Upload] Start, filename={}, contentType={}, size={}", 
                 file.getOriginalFilename(), file.getContentType(), file.getSize());
         
-        // TODO: 需要 FileInfoResponse → FileInfoDto 的转换，当前上传接口设计需要进一步讨论
-        FileInfoDto dto = service.upload(null, file);
-        FileInfoResponse response = FileInfoAssembler.toResponse(dto);
+        FileInfoDto inputDto = FileInfoAssembler.toDto(request);
+        FileInfoDto resultDto = service.upload(inputDto, file);
+        FileInfoResponse response = FileInfoAssembler.toResponse(resultDto);
         String resourceUri = SystemConstant.FILE_PATH + "/" + response.identity().fKey();
         
         log.info("[Upload] Success, fileKey={}, filename={}, size={}", 

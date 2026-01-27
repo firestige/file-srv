@@ -1,6 +1,7 @@
 package tech.icc.filesrv.core.application.entrypoint.assembler;
 
 import tech.icc.filesrv.core.application.entrypoint.model.FileInfoResponse;
+import tech.icc.filesrv.core.application.entrypoint.model.FileUploadRequest;
 import tech.icc.filesrv.core.application.entrypoint.model.MetaQueryRequest;
 import tech.icc.filesrv.core.application.service.dto.FileInfoDto;
 import tech.icc.filesrv.core.application.service.dto.MetaQueryCriteria;
@@ -21,6 +22,25 @@ public final class FileInfoAssembler {
     }
 
     // ==================== Request → Criteria ====================
+
+    /**
+     * 将上传请求转换为应用层 DTO
+     *
+     * @param request API 层上传请求（可选的元数据）
+     * @return 应用层 DTO（部分填充，文件信息由 MultipartFile 提供）
+     */
+    public static FileInfoDto toDto(FileUploadRequest request) {
+        if (request == null) {
+            return FileInfoDto.builder()
+                    .owner(null)
+                    .access(null)
+                    .build();
+        }
+        return FileInfoDto.builder()
+                .owner(request.toOwnerInfo())
+                .access(request.toAccessControl())
+                .build();
+    }
 
     /**
      * 将 API 层查询请求转换为应用层查询条件
