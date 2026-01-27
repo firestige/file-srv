@@ -92,12 +92,11 @@ public class TaskController {
      * 上传分片
      * <p>
      * 将文件的一个分片上传到任务。分片序号从 1 开始，最大 10000。
-     * 客户端需在请求头中提供 Content-Length。
+     * 使用流式传输，无需预先声明 Content-Length。
      *
-     * @param taskId        任务标识
-     * @param partNumber    分片序号（1-10000）
-     * @param contentLength 分片大小（字节）
-     * @param request       HTTP 请求（用于获取输入流）
+     * @param taskId     任务标识
+     * @param partNumber 分片序号（1-10000）
+     * @param request    HTTP 请求（用于获取输入流）
      * @return 分片 ETag
      */
     @PutMapping("/{taskId}/parts/{partNumber}")
@@ -112,13 +111,11 @@ public class TaskController {
             @Max(value = MAX_PART_NUMBER, message = "分片序号最大为 10000")
             int partNumber,
 
-            @RequestHeader("Content-Length") long contentLength,
             HttpServletRequest request) throws IOException {
 
-        log.info("[UploadPart] Start, taskId={}, partNumber={}, contentLength={}",
-                taskId, partNumber, contentLength);
+        log.info("[UploadPart] Start, taskId={}, partNumber={}", taskId, partNumber);
 
-        PartETagDto dto = service.uploadPart(taskId, partNumber, request.getInputStream(), contentLength);
+        PartETagDto dto = service.uploadPart(taskId, partNumber, request.getInputStream());
         PartETag response = TaskInfoAssembler.toResponse(dto);
 
         log.info("[UploadPart] Success, taskId={}, partNumber={}, eTag={}",

@@ -37,13 +37,12 @@ public class TaskService {
     /**
      * 上传分片
      *
-     * @param taskId        任务标识
-     * @param partNumber    分片序号（1-based）
-     * @param content       分片内容流
-     * @param contentLength 分片大小（字节）
+     * @param taskId     任务标识
+     * @param partNumber 分片序号（1-based）
+     * @param content    分片内容流
      * @return 分片 ETag
      */
-    public PartETagDto uploadPart(String taskId, int partNumber, InputStream content, long contentLength) {
+    public PartETagDto uploadPart(String taskId, int partNumber, InputStream content) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
