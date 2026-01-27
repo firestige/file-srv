@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import tech.icc.filesrv.common.constants.SystemConstant;
 import tech.icc.filesrv.common.context.Result;
+import tech.icc.filesrv.common.exception.FileNotFoundException;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
 import tech.icc.filesrv.core.application.entrypoint.model.FileInfo;
 import tech.icc.filesrv.core.application.entrypoint.model.MetaQueryParams;
@@ -81,9 +82,10 @@ public class FileController {
         
         return service.getFileInfo(fileKey)
                 .map(info -> buildDownloadResponse(fileKey, info))
-                .orElseGet(() -> {
-                    log.warn("[Download] File not found, fileKey={}", fileKey);
-                    return ResponseEntity.notFound().build();
+                .orElseThrow(() -> {
+                    String msg = "[Download] File not found, fileKey=" + fileKey;
+                    log.warn(msg);
+                    return FileNotFoundException.withoutStack(msg);
                 });
     }
 
