@@ -9,6 +9,7 @@ import tech.icc.filesrv.core.application.entrypoint.model.FileInfo;
 import tech.icc.filesrv.core.application.entrypoint.model.MetaQueryParams;
 
 import java.time.Duration;
+import java.util.Optional;
 
 @Service
 public class FileService {
@@ -20,7 +21,13 @@ public class FileService {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    public FileInfo getFileInfo(String fileKey) {
+    /**
+     * 根据文件标识获取文件信息
+     *
+     * @param fileKey 文件唯一标识
+     * @return 文件信息，不存在时返回 empty
+     */
+    public Optional<FileInfo> getFileInfo(String fileKey) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
@@ -28,7 +35,7 @@ public class FileService {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    public String getPresignUrl(String fileKey, Duration expire) {
+    public String getPresignedUrl(String fileKey, Duration expire) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
