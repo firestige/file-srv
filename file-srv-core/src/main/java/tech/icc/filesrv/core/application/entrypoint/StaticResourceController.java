@@ -21,6 +21,6 @@ public class StaticResourceController {
 
     @GetMapping("/{fkey}")
     public ResponseEntity<Resource> staticResource(@PathVariable String fkey) {
-
+        return null;
     }
 }

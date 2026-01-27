@@ -9,6 +9,8 @@ import tech.icc.filesrv.common.vo.file.AccessControl;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
 import tech.icc.filesrv.common.vo.file.StorageRef;
 
+import java.util.Map;
+
 /**
  * File information response DTO - assembles shared VOs with presentation annotations
  */
@@ -27,7 +29,7 @@ public record FileInfo(
     public record AccessControlView(
             @JsonProperty("public") Boolean isPublic,
             String tags,
-            java.util.Map<String, String> customMetadata
+            Map<String, String> customMetadata
     ) {
         public static AccessControlView from(AccessControl ac) {
             return new AccessControlView(ac.isPublic(), ac.tags(), ac.customMetadata());
