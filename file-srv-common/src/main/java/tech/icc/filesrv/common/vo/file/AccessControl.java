@@ -16,4 +16,18 @@ public record AccessControl(
         Boolean isPublic,
         String tags,
         Map<String, String> customMetadata
-) {}
+) {
+    /**
+     * 默认访问控制（私有）
+     */
+    public static AccessControl defaultAccess() {
+        return new AccessControl(false, null, Map.of());
+    }
+
+    /**
+     * 公开访问
+     */
+    public static AccessControl publicAccess() {
+        return new AccessControl(true, null, Map.of());
+    }
+}
