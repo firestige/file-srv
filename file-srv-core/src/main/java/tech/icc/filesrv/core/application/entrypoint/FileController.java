@@ -133,13 +133,15 @@ public class FileController {
      *   <li>分享临时链接给第三方</li>
      *   <li>CDN 回源场景</li>
      * </ul>
+     * <p>
+     * 返回的 URL 中已包含签名和过期时间参数，无需额外处理。
      *
      * @param fileKey       文件唯一标识（1-128 字符）
      * @param expirySeconds URL 有效期（秒），默认 3600，范围 60-604800（7天）
-     * @return 预签名 URL 信息
+     * @return 预签名 URL（包含签名和过期时间参数）
      */
     @GetMapping("/{fkey}/presign")
-    public Result<PresignedUrlResponse> getPresignedUrl(
+    public Result<String> getPresignedUrl(
             @PathVariable("fkey")
             @NotBlank(message = "文件标识不能为空")
             @Size(max = MAX_FILE_KEY_LENGTH, message = "文件标识长度不能超过 128 字符")
@@ -154,22 +156,9 @@ public class FileController {
 
         String url = service.getPresignedUrl(fileKey, Duration.ofSeconds(expiry));
 
-        log.info("[Presign] Success, fileKey={}, expiry={}s", fileKey, expiry);
-        return Result.success(new PresignedUrlResponse(url, fileKey, expiry));
+        log.info("[Presign] Success, fileKey={}", fileKey);
+        return Result.success(url);
     }
-
-    /**
-     * 预签名 URL 响应
-     *
-     * @param url       预签名访问 URL
-     * @param fileKey   文件唯一标识
-     * @param expiresIn URL 有效期（秒）
-     */
-    public record PresignedUrlResponse(
-            String url,
-            String fileKey,
-            int expiresIn
-    ) {}
 
     /**
      * 上传文件（简单上传）
