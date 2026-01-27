@@ -3,7 +3,7 @@ package tech.icc.filesrv.adapter.hcs;
 import com.obs.services.ObsClient;
 import com.obs.services.model.*;
 import lombok.extern.slf4j.Slf4j;
-import tech.icc.filesrv.adapter.StorageAdapter;
+import tech.icc.filesrv.core.infra.storage.StorageAdapter;
 import tech.icc.filesrv.adapter.model.FileMetadata;
 import tech.icc.filesrv.adapter.model.PartETag;
 import tech.icc.filesrv.adapter.hcs.config.ObsProperties;

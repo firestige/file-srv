@@ -10,6 +10,23 @@
     </parent>
 
     <artifactId>file-srv-adapters</artifactId>
+    <packaging>pom</packaging>
 
+    <modules>
+        <module>file-srv-adapter-hcs</module>
+    </modules>
+
+    <dependencies>
+        <dependency>
+            <groupId>tech.icc</groupId>
+            <artifactId>file-srv-core</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+    </dependencies>
 
 </project>
