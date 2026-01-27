@@ -13,6 +13,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import tech.icc.filesrv.common.constants.ResultCode;
 import tech.icc.filesrv.common.context.Result;
+import tech.icc.filesrv.common.exception.AccessDeniedException;
 import tech.icc.filesrv.common.exception.FileNotFoundException;
 import tech.icc.filesrv.common.exception.FileServiceException;
 
@@ -38,6 +39,19 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     // ==================== 业务异常 ====================
+
+    /**
+     * 处理访问被拒绝异常
+     * <p>
+     * 返回 HTTP 403 状态码，适用于无权限访问资源的场景。
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Result<Void>> handleAccessDeniedException(AccessDeniedException e) {
+        log.warn("Access denied: {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(Result.failure(e));
+    }
 
     /**
      * 处理文件未找到异常
