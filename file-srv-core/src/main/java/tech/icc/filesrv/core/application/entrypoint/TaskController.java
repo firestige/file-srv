@@ -15,15 +15,19 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import tech.icc.filesrv.common.constants.SystemConstant;
 import tech.icc.filesrv.common.context.Result;
+import tech.icc.filesrv.core.application.entrypoint.assembler.TaskInfoAssembler;
 import tech.icc.filesrv.core.application.entrypoint.model.CreateTaskRequest;
 import tech.icc.filesrv.core.application.entrypoint.model.PartETag;
 import tech.icc.filesrv.core.application.entrypoint.model.TaskResponse;
 import tech.icc.filesrv.core.application.service.TaskService;
+import tech.icc.filesrv.core.application.service.dto.PartETagDto;
+import tech.icc.filesrv.core.application.service.dto.TaskInfoDto;
 
 import java.io.IOException;
 import java.net.URI;
@@ -73,14 +77,15 @@ public class TaskController {
         log.info("[CreateTask] Start, filename={}, size={}, contentType={}",
                 request.file().filename(), request.file().size(), request.file().contentType());
 
-        TaskResponse.Pending task = service.createTask(request.file(), request.callbacks());
-        String location = SystemConstant.TASKS_PATH + "/" + task.summary().taskId();
+        TaskInfoDto.Pending dto = service.createTask(request.file(), request.callbacks());
+        TaskResponse.Pending response = (TaskResponse.Pending) TaskInfoAssembler.toResponse(dto);
+        String location = SystemConstant.TASKS_PATH + "/" + response.summary().taskId();
 
         log.info("[CreateTask] Success, taskId={}, uploadId={}",
-                task.summary().taskId(), task.summary().uploadId());
+                response.summary().taskId(), response.summary().uploadId());
 
         return ResponseEntity.created(URI.create(location))
-                .body(Result.success(task));
+                .body(Result.success(response));
     }
 
     /**
@@ -91,6 +96,7 @@ public class TaskController {
      *
      * @param taskId        任务标识
      * @param partNumber    分片序号（1-10000）
+     * @param contentLength 分片大小（字节）
      * @param request       HTTP 请求（用于获取输入流）
      * @return 分片 ETag
      */
@@ -106,16 +112,19 @@ public class TaskController {
             @Max(value = MAX_PART_NUMBER, message = "分片序号最大为 10000")
             int partNumber,
 
+            @RequestHeader("Content-Length") long contentLength,
             HttpServletRequest request) throws IOException {
 
-        log.info("[UploadPart] Start, taskId={}, partNumber={}", taskId, partNumber);
+        log.info("[UploadPart] Start, taskId={}, partNumber={}, contentLength={}",
+                taskId, partNumber, contentLength);
 
-        PartETag result = service.uploadPart(taskId, partNumber, request.getInputStream());
+        PartETagDto dto = service.uploadPart(taskId, partNumber, request.getInputStream(), contentLength);
+        PartETag response = TaskInfoAssembler.toResponse(dto);
 
         log.info("[UploadPart] Success, taskId={}, partNumber={}, eTag={}",
-                taskId, partNumber, result.eTag());
+                taskId, partNumber, response.eTag());
 
-        return Result.success(result);
+        return Result.success(response);
     }
 
     /**
@@ -140,7 +149,7 @@ public class TaskController {
 
         log.info("[CompleteUpload] Start, taskId={}, partsCount={}", taskId, parts.size());
 
-        service.completeUpload(taskId, parts);
+        service.completeUpload(taskId, TaskInfoAssembler.toDtoList(parts));
 
         log.info("[CompleteUpload] Accepted, taskId={}", taskId);
 
@@ -201,7 +210,8 @@ public class TaskController {
 
         log.debug("[GetTask] Query, taskId={}", taskId);
 
-        TaskResponse response = service.getTask(taskId);
+        TaskInfoDto dto = service.getTask(taskId);
+        TaskResponse response = TaskInfoAssembler.toResponse(dto);
 
         log.debug("[GetTask] Result, taskId={}, status={}", taskId, response.getClass().getSimpleName());
 

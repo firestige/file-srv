@@ -5,8 +5,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import tech.icc.filesrv.common.vo.task.FileRequest;
 import tech.icc.filesrv.common.vo.task.TaskSummary;
-import tech.icc.filesrv.core.application.entrypoint.model.PartETag;
-import tech.icc.filesrv.core.application.entrypoint.model.TaskResponse;
+import tech.icc.filesrv.core.application.service.dto.PartETagDto;
+import tech.icc.filesrv.core.application.service.dto.TaskInfoDto;
 import tech.icc.filesrv.core.domain.tasks.TaskStatus;
 
 import java.io.InputStream;
@@ -15,7 +15,8 @@ import java.util.List;
 /**
  * 任务服务
  * <p>
- * 处理异步上传任务的完整生命周期：创建 → 分片上传 → 完成/中止 → 状态查询
+ * 处理异步上传任务的完整生命周期：创建 → 分片上传 → 完成/中止 → 状态查询。
+ * 使用应用层 DTO（TaskInfoDto、PartETagDto），不依赖 API 层类型。
  */
 @Service
 public class TaskService {
@@ -27,9 +28,9 @@ public class TaskService {
      *
      * @param request   文件请求信息
      * @param callbacks 回调配置（可选）
-     * @return Pending 状态响应，包含预签名上传 URL
+     * @return Pending 状态任务信息，包含预签名上传 URL
      */
-    public TaskResponse.Pending createTask(FileRequest request, String callbacks) {
+    public TaskInfoDto.Pending createTask(FileRequest request, String callbacks) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
@@ -39,9 +40,10 @@ public class TaskService {
      * @param taskId        任务标识
      * @param partNumber    分片序号（1-based）
      * @param content       分片内容流
+     * @param contentLength 分片大小（字节）
      * @return 分片 ETag
      */
-    public PartETag uploadPart(String taskId, int partNumber, InputStream content) {
+    public PartETagDto uploadPart(String taskId, int partNumber, InputStream content, long contentLength) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
@@ -51,7 +53,7 @@ public class TaskService {
      * @param taskId 任务标识
      * @param parts  已上传分片的 ETag 列表
      */
-    public void completeUpload(String taskId, List<PartETag> parts) {
+    public void completeUpload(String taskId, List<PartETagDto> parts) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
@@ -71,9 +73,9 @@ public class TaskService {
      * 获取任务详情（轮询接口）
      *
      * @param taskId 任务标识
-     * @return 对应状态的 TaskResponse
+     * @return 对应状态的任务信息
      */
-    public TaskResponse getTask(String taskId) {
+    public TaskInfoDto getTask(String taskId) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
