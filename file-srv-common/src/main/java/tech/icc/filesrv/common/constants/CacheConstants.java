@@ -1,4 +1,4 @@
-package tech.icc.filesrv.common.contants;
+package tech.icc.filesrv.common.constants;
 
-public class CacheConstants {
+public interface CacheConstants {
 }
