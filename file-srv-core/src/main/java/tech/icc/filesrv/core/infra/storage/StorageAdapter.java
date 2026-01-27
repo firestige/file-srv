@@ -54,11 +54,35 @@ public interface StorageAdapter {
     boolean exists(String path);
 
     /**
-     * 生成预签名 URL
+     * 生成预签名下载 URL
      *
      * @param path   存储路径
      * @param expiry 有效期
      * @return 预签名 URL
      */
     String generatePresignedUrl(String path, Duration expiry);
+
+    // ==================== 分片上传 ====================
+
+    /**
+     * 开始分片上传会话
+     *
+     * @param path        存储路径
+     * @param contentType MIME 类型
+     * @return 上传会话
+     */
+    UploadSession beginUpload(String path, String contentType);
+
+    /**
+     * 恢复已有的上传会话
+     * <p>
+     * 用于断点续传场景，通过 sessionId 恢复之前的上传会话。
+     *
+     * @param path      存储路径
+     * @param sessionId 之前的会话 ID
+     * @return 上传会话
+     */
+    default UploadSession resumeUpload(String path, String sessionId) {
+        throw new UnsupportedOperationException("Resume upload not supported by " + getAdapterType());
+    }
 }

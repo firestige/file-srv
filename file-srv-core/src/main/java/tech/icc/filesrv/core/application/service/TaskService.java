@@ -1,16 +1,34 @@
 package tech.icc.filesrv.core.application.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import tech.icc.filesrv.common.vo.task.FileRequest;
-import tech.icc.filesrv.common.vo.task.TaskSummary;
+import org.springframework.transaction.annotation.Transactional;
+import tech.icc.filesrv.common.context.TaskContext;
+import tech.icc.filesrv.common.vo.task.*;
 import tech.icc.filesrv.core.application.service.dto.PartETagDto;
 import tech.icc.filesrv.core.application.service.dto.TaskInfoDto;
-import tech.icc.filesrv.core.domain.tasks.TaskStatus;
+import tech.icc.filesrv.core.domain.events.TaskCompletedEvent;
+import tech.icc.filesrv.core.domain.events.TaskFailedEvent;
+import tech.icc.filesrv.core.domain.tasks.*;
+import tech.icc.filesrv.core.infra.event.TaskEventPublisher;
+import tech.icc.filesrv.core.infra.file.LocalFileManager;
+import tech.icc.filesrv.core.infra.plugin.PluginNotFoundException;
+import tech.icc.filesrv.core.infra.plugin.PluginRegistry;
+import tech.icc.filesrv.core.infra.plugin.PluginResult;
+import tech.icc.filesrv.core.infra.plugin.SharedPlugin;
+import tech.icc.filesrv.core.infra.storage.StorageAdapter;
+import tech.icc.filesrv.core.infra.storage.UploadSession;
 
 import java.io.InputStream;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 任务服务
@@ -21,17 +39,73 @@ import java.util.List;
 @Service
 public class TaskService {
 
+    private static final Logger log = LoggerFactory.getLogger(TaskService.class);
+
+    private static final Duration DEFAULT_EXPIRE_AFTER = Duration.ofHours(24);
+
+    private final TaskRepository taskRepository;
+    private final StorageAdapter storageAdapter;
+    private final PluginRegistry pluginRegistry;
+    private final TaskEventPublisher eventPublisher;
+    private final LocalFileManager localFileManager;
+
+    public TaskService(TaskRepository taskRepository,
+                       StorageAdapter storageAdapter,
+                       PluginRegistry pluginRegistry,
+                       TaskEventPublisher eventPublisher,
+                       LocalFileManager localFileManager) {
+        this.taskRepository = taskRepository;
+        this.storageAdapter = storageAdapter;
+        this.pluginRegistry = pluginRegistry;
+        this.eventPublisher = eventPublisher;
+        this.localFileManager = localFileManager;
+    }
+
     // ==================== 命令操作 ====================
 
     /**
      * 创建上传任务
      *
      * @param request   文件请求信息
-     * @param callbacks 回调配置（可选）
-     * @return Pending 状态任务信息，包含预签名上传 URL
+     * @param callbacks 回调配置（逗号分隔的插件名）
+     * @param params    插件参数
+     * @return Pending 状态任务信息
      */
+    @Transactional
+    public TaskInfoDto.Pending createTask(FileRequest request, String callbacks, Map<String, Object> params) {
+        // 验证所有 callback 插件都存在
+        validateCallbacks(callbacks);
+
+        // 创建任务聚合
+        String fKey = generateFKey(request);
+        TaskAggregate task = TaskAggregate.create(fKey, callbacks, params, DEFAULT_EXPIRE_AFTER);
+
+        // 生成存储路径并开始上传会话
+        String storagePath = buildStoragePath(fKey, request.contentType());
+        UploadSession session = storageAdapter.beginUpload(storagePath, request.contentType());
+
+        // 记录会话信息
+        task.startUpload(session.getSessionId(), getNodeId());
+
+        // 保存任务
+        taskRepository.save(task);
+
+        log.info("Task created: taskId={}, fKey={}, callbacks={}", task.getTaskId(), fKey, callbacks);
+
+        return TaskInfoDto.Pending.builder()
+                .summary(toSummary(task))
+                .request(request)
+                .uploadUrl(null)  // 服务端中转，不需要预签名 URL
+                .partUploadUrls(null)
+                .build();
+    }
+
+    /**
+     * 创建上传任务（简化版本）
+     */
+    @Transactional
     public TaskInfoDto.Pending createTask(FileRequest request, String callbacks) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return createTask(request, callbacks, null);
     }
 
     /**
@@ -40,20 +114,106 @@ public class TaskService {
      * @param taskId     任务标识
      * @param partNumber 分片序号（1-based）
      * @param content    分片内容流
+     * @param size       分片大小
      * @return 分片 ETag
      */
+    @Transactional
+    public PartETagDto uploadPart(String taskId, int partNumber, InputStream content, long size) {
+        TaskAggregate task = getTaskOrThrow(taskId);
+
+        // 恢复上传会话
+        String storagePath = buildStoragePath(task.getFKey(), task.getContentType());
+        UploadSession session = storageAdapter.resumeUpload(storagePath, task.getSessionId());
+
+        try {
+            // 上传分片
+            String etag = session.uploadPart(partNumber, content, size);
+
+            // 记录分片信息
+            PartInfo partInfo = PartInfo.of(partNumber, etag, size);
+            task.recordPart(partInfo);
+            taskRepository.save(task);
+
+            log.debug("Part uploaded: taskId={}, partNumber={}, etag={}", taskId, partNumber, etag);
+
+            return new PartETagDto(partNumber, etag);
+        } finally {
+            session.close();
+        }
+    }
+
+    /**
+     * 上传分片（简化版本，从方法参数获取）
+     */
+    @Transactional
     public PartETagDto uploadPart(String taskId, int partNumber, InputStream content) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        // 需要调用方提供 size，这里假设流可重复读或已缓冲
+        throw new UnsupportedOperationException("Please use uploadPart(taskId, partNumber, content, size)");
     }
 
     /**
      * 完成上传，触发 callback 处理
      *
-     * @param taskId 任务标识
-     * @param parts  已上传分片的 ETag 列表
+     * @param taskId      任务标识
+     * @param parts       已上传分片的 ETag 列表
+     * @param hash        文件哈希
+     * @param totalSize   文件总大小
+     * @param contentType MIME 类型
+     * @param filename    文件名
+     * @return 完成后的任务信息
      */
+    @Transactional
+    public TaskInfoDto completeUpload(String taskId, List<PartETagDto> parts,
+                                      String hash, Long totalSize,
+                                      String contentType, String filename) {
+        TaskAggregate task = getTaskOrThrow(taskId);
+
+        // 转换分片信息
+        List<PartInfo> partInfos = parts.stream()
+                .map(p -> PartInfo.of(p.partNumber(), p.eTag(), 0))
+                .toList();
+
+        // 恢复会话并完成上传
+        String storagePath = buildStoragePath(task.getFKey(), contentType);
+        UploadSession session = storageAdapter.resumeUpload(storagePath, task.getSessionId());
+
+        try {
+            String finalPath = session.complete(partInfos);
+
+            // 更新任务状态
+            task.completeUpload(finalPath, hash, totalSize, contentType, filename);
+            taskRepository.save(task);
+
+            log.info("Upload completed: taskId={}, path={}", taskId, finalPath);
+
+            // 执行 callbacks
+            if (task.getStatus() == TaskStatus.PROCESSING) {
+                executeCallbacks(task);
+            }
+
+            return toDto(task);
+        } catch (Exception e) {
+            log.error("Complete upload failed: taskId={}", taskId, e);
+            task.markFailed(e.getMessage());
+            taskRepository.save(task);
+            publishFailedEvent(task);
+            throw e;
+        } finally {
+            session.close();
+        }
+    }
+
+    /**
+     * 完成上传（简化版本）
+     */
+    @Transactional
     public void completeUpload(String taskId, List<PartETagDto> parts) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        TaskAggregate task = getTaskOrThrow(taskId);
+        // 使用已记录的分片信息
+        List<PartInfo> partInfos = task.getSortedParts();
+        long totalSize = partInfos.stream().mapToLong(PartInfo::size).sum();
+
+        completeUpload(taskId, parts, null, totalSize, task.getContentType(), task.getFilename());
     }
 
     /**
@@ -62,8 +222,97 @@ public class TaskService {
      * @param taskId 任务标识
      * @param reason 中止原因（可选）
      */
+    @Transactional
     public void abortUpload(String taskId, String reason) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        TaskAggregate task = getTaskOrThrow(taskId);
+
+        // 如果有会话，中止存储层上传
+        if (task.getSessionId() != null) {
+            try {
+                String storagePath = buildStoragePath(task.getFKey(), task.getContentType());
+                UploadSession session = storageAdapter.resumeUpload(storagePath, task.getSessionId());
+                session.abort();
+                session.close();
+            } catch (Exception e) {
+                log.warn("Failed to abort storage session: taskId={}", taskId, e);
+            }
+        }
+
+        // 清理本地文件
+        localFileManager.cleanup(taskId);
+
+        // 更新状态
+        task.abort();
+        taskRepository.save(task);
+
+        log.info("Task aborted: taskId={}, reason={}", taskId, reason);
+
+        // 发布事件
+        publishFailedEvent(task);
+    }
+
+    // ==================== Callback 执行 ====================
+
+    private void executeCallbacks(TaskAggregate task) {
+        TaskContext context = task.getContext();
+
+        // 准备本地文件
+        Path localPath = localFileManager.prepareLocalFile(task.getStoragePath(), task.getTaskId());
+        context.put(TaskContext.KEY_LOCAL_FILE_PATH, localPath.toString());
+
+        try {
+            while (task.getCurrentCallback().isPresent()) {
+                String callbackName = task.getCurrentCallback().get();
+
+                log.info("Executing callback: taskId={}, callback={}, index={}",
+                        task.getTaskId(), callbackName, task.getCurrentCallbackIndex());
+
+                try {
+                    SharedPlugin plugin = pluginRegistry.getPlugin(callbackName);
+                    PluginResult result = plugin.apply(context);
+
+                    if (result instanceof PluginResult.Failure failure) {
+                        log.error("Callback failed: taskId={}, callback={}, reason={}",
+                                task.getTaskId(), callbackName, failure.reason());
+                        task.markFailed("Callback [" + callbackName + "] failed: " + failure.reason());
+                        taskRepository.save(task);
+                        publishFailedEvent(task);
+                        return;
+                    }
+
+                    if (result instanceof PluginResult.Success success) {
+                        // 合并输出到 context
+                        context.putAll(success.outputs());
+                    }
+
+                    // 推进到下一个 callback
+                    task.advanceCallback();
+                    taskRepository.save(task);
+
+                } catch (PluginNotFoundException e) {
+                    log.error("Plugin not found: {}", callbackName);
+                    task.markFailed("Plugin not found: " + callbackName);
+                    taskRepository.save(task);
+                    publishFailedEvent(task);
+                    return;
+                } catch (Exception e) {
+                    log.error("Callback execution error: taskId={}, callback={}",
+                            task.getTaskId(), callbackName, e);
+                    task.markFailed("Callback [" + callbackName + "] error: " + e.getMessage());
+                    taskRepository.save(task);
+                    publishFailedEvent(task);
+                    return;
+                }
+            }
+
+            // 所有 callback 执行完成
+            log.info("All callbacks completed: taskId={}", task.getTaskId());
+            publishCompletedEvent(task);
+
+        } finally {
+            // 清理本地文件
+            localFileManager.cleanup(task.getTaskId());
+        }
     }
 
     // ==================== 查询操作 ====================
@@ -75,7 +324,8 @@ public class TaskService {
      * @return 对应状态的任务信息
      */
     public TaskInfoDto getTask(String taskId) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        TaskAggregate task = getTaskOrThrow(taskId);
+        return toDto(task);
     }
 
     /**
@@ -86,6 +336,183 @@ public class TaskService {
      * @return 任务摘要分页列表
      */
     public Page<TaskSummary> listTasks(TaskStatus status, Pageable pageable) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        Page<TaskAggregate> tasks = taskRepository.findByStatus(status, pageable);
+        return tasks.map(this::toSummary);
+    }
+
+    // ==================== 事件发布 ====================
+
+    private void publishCompletedEvent(TaskAggregate task) {
+        TaskCompletedEvent event = TaskCompletedEvent.of(
+                task.getTaskId(),
+                task.getFKey(),
+                task.getStoragePath(),
+                task.getHash(),
+                task.getTotalSize(),
+                task.getContentType(),
+                task.getFilename(),
+                task.getContext().getDerivedFiles(),
+                extractPluginOutputs(task.getContext())
+        );
+        eventPublisher.publishCompleted(event);
+    }
+
+    private void publishFailedEvent(TaskAggregate task) {
+        TaskFailedEvent event;
+        switch (task.getStatus()) {
+            case ABORTED -> event = TaskFailedEvent.aborted(task.getTaskId(), task.getFKey());
+            case EXPIRED -> event = TaskFailedEvent.expired(task.getTaskId(), task.getFKey());
+            default -> event = TaskFailedEvent.callbackFailed(
+                    task.getTaskId(),
+                    task.getFKey(),
+                    task.getFailureReason(),
+                    task.getCurrentCallbackIndex()
+            );
+        }
+        eventPublisher.publishFailed(event);
+    }
+
+    private Map<String, Object> extractPluginOutputs(TaskContext context) {
+        Map<String, Object> outputs = new HashMap<>();
+        for (Map.Entry<String, Object> entry : context.asMap().entrySet()) {
+            // 排除内置 key
+            if (!entry.getKey().startsWith("_") && !isBuiltinKey(entry.getKey())) {
+                outputs.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return outputs;
+    }
+
+    private boolean isBuiltinKey(String key) {
+        return key.equals(TaskContext.KEY_STORAGE_PATH)
+                || key.equals(TaskContext.KEY_LOCAL_FILE_PATH)
+                || key.equals(TaskContext.KEY_FILE_HASH)
+                || key.equals(TaskContext.KEY_CONTENT_TYPE)
+                || key.equals(TaskContext.KEY_FILE_SIZE)
+                || key.equals(TaskContext.KEY_FILENAME)
+                || key.equals(TaskContext.KEY_DERIVED_FILES);
+    }
+
+    // ==================== 辅助方法 ====================
+
+    private TaskAggregate getTaskOrThrow(String taskId) {
+        return taskRepository.findByTaskId(taskId)
+                .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
+    }
+
+    private void validateCallbacks(String callbacks) {
+        if (callbacks == null || callbacks.isBlank()) {
+            return;
+        }
+        for (String name : callbacks.split(",")) {
+            String trimmed = name.trim();
+            if (!trimmed.isEmpty() && !pluginRegistry.hasPlugin(trimmed)) {
+                throw new PluginNotFoundException(trimmed);
+            }
+        }
+    }
+
+    private String generateFKey(FileRequest request) {
+        // 简单实现：使用 UUID
+        return java.util.UUID.randomUUID().toString();
+    }
+
+    private String buildStoragePath(String fKey, String contentType) {
+        // 格式: {hash前2位}/{hash前4位}/{fKey}
+        String prefix = fKey.substring(0, 2) + "/" + fKey.substring(0, 4) + "/";
+        return prefix + fKey;
+    }
+
+    private String getNodeId() {
+        // 单节点场景返回固定值
+        return "primary";
+    }
+
+    private TaskSummary toSummary(TaskAggregate task) {
+        return TaskSummary.builder()
+                .taskId(task.getTaskId())
+                .uploadId(task.getSessionId())
+                .createdAt(task.getCreatedAt())
+                .expiresAt(task.getExpiresAt())
+                .build();
+    }
+
+    private TaskInfoDto toDto(TaskAggregate task) {
+        TaskSummary summary = toSummary(task);
+        FileRequest request = FileRequest.builder()
+                .filename(task.getFilename())
+                .contentType(task.getContentType())
+                .size(task.getTotalSize())
+                .build();
+
+        return switch (task.getStatus()) {
+            case PENDING -> TaskInfoDto.Pending.builder()
+                    .summary(summary)
+                    .request(request)
+                    .build();
+
+            case IN_PROGRESS -> TaskInfoDto.InProgress.builder()
+                    .summary(summary)
+                    .request(request)
+                    .progress(toProgress(task))
+                    .build();
+
+            case PROCESSING -> TaskInfoDto.InProgress.builder()
+                    .summary(summary)
+                    .request(request)
+                    .progress(toProgress(task))
+                    .build();
+
+            case COMPLETED -> TaskInfoDto.Completed.builder()
+                    .summary(summary)
+                    .derivedFiles(task.getContext().getDerivedFiles())
+                    .build();
+
+            case FAILED -> TaskInfoDto.Failed.builder()
+                    .summary(summary)
+                    .request(request)
+                    .progress(toProgress(task))
+                    .failure(FailureDetail.builder()
+                            .errorCode("TASK_FAILED")
+                            .errorMessage(task.getFailureReason())
+                            .build())
+                    .build();
+
+            case ABORTED -> TaskInfoDto.Aborted.builder()
+                    .summary(summary)
+                    .request(request)
+                    .abortedAt(task.getCompletedAt())
+                    .build();
+
+            case EXPIRED -> TaskInfoDto.Failed.builder()
+                    .summary(summary)
+                    .request(request)
+                    .failure(FailureDetail.builder()
+                            .errorCode("TASK_EXPIRED")
+                            .errorMessage("Task expired")
+                            .build())
+                    .build();
+        };
+    }
+
+    private UploadProgress toProgress(TaskAggregate task) {
+        List<PartInfo> parts = task.getParts();
+        long uploadedSize = parts.stream().mapToLong(PartInfo::size).sum();
+        
+        // 转换为 UploadProgress.PartInfo 列表
+        List<UploadProgress.PartInfo> progressParts = parts.stream()
+                .map(p -> UploadProgress.PartInfo.builder()
+                        .partNumber(p.partNumber())
+                        .size(p.size())
+                        .checksum(p.etag())
+                        .build())
+                .toList();
+        
+        return UploadProgress.builder()
+                .uploadedParts(parts.size())
+                .totalParts(0)  // 未知
+                .uploadedBytes(uploadedSize)
+                .parts(progressParts)
+                .build();
     }
 }

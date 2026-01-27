@@ -34,6 +34,6 @@ public class HcsObsAutoConfiguration {
     @ConditionalOnMissingBean(StorageAdapter.class)
     @ConditionalOnProperty(name = "storage.obs.enabled", havingValue = "true")
     public StorageAdapter hcsObsAdapter(ObsClient obsClient, ObsProperties properties) {
-        return new HcsObsAdapter();
+        return new HcsObsAdapter(properties.getBucketName());
     }
 }
