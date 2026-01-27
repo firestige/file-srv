@@ -83,9 +83,8 @@ public class FileController {
         return service.getFileInfo(fileKey)
                 .map(info -> buildDownloadResponse(fileKey, info))
                 .orElseThrow(() -> {
-                    String msg = "[Download] File not found, fileKey=" + fileKey;
-                    log.warn(msg);
-                    return FileNotFoundException.withoutStack(msg);
+                    log.warn("[StaticResource] File not found, fileKey={}", fileKey);
+                    return FileNotFoundException.withoutStack("文件不存在: " + fileKey);
                 });
     }
 
