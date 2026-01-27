@@ -10,12 +10,13 @@ import java.time.LocalDateTime;
 import java.util.Set;
 
 /**
- * 文件元数据查询参数
+ * 文件元数据查询 API 请求
  * <p>
- * 支持多条件组合查询，所有字段均为可选。
+ * 包含 Bean Validation 注解，用于 API 入口校验。
+ * 由 Assembler 转换为应用层查询条件。
  */
 @Data
-public class MetaQueryParams {
+public class MetaQueryRequest {
 
     /**
      * 文件名（支持模糊匹配，前缀匹配）

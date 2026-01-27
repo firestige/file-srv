@@ -12,10 +12,13 @@ import tech.icc.filesrv.common.vo.file.StorageRef;
 import java.util.Map;
 
 /**
- * File information response DTO - assembles shared VOs with presentation annotations
+ * 文件信息 API 响应
+ * <p>
+ * 组合共享 VO，添加展示相关注解（@JsonUnwrapped 等）。
+ * 由 Assembler 从应用层 DTO 转换而来。
  */
 @Builder
-public record FileInfo(
+public record FileInfoResponse(
         @JsonUnwrapped FileIdentity identity,
         @JsonUnwrapped StorageRef storageRef,
         @JsonUnwrapped OwnerInfo owner,

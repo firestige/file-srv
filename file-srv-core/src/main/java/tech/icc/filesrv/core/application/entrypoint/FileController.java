@@ -29,10 +29,12 @@ import tech.icc.filesrv.common.constants.SystemConstant;
 import tech.icc.filesrv.common.context.Result;
 import tech.icc.filesrv.common.exception.FileNotFoundException;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
-import tech.icc.filesrv.core.application.entrypoint.model.FileInfo;
-import tech.icc.filesrv.core.application.entrypoint.model.MetaQueryParams;
+import tech.icc.filesrv.core.application.entrypoint.assembler.FileInfoAssembler;
+import tech.icc.filesrv.core.application.entrypoint.model.FileInfoResponse;
+import tech.icc.filesrv.core.application.entrypoint.model.MetaQueryRequest;
 import tech.icc.filesrv.core.application.entrypoint.support.FileResponseBuilder;
 import tech.icc.filesrv.core.application.service.FileService;
+import tech.icc.filesrv.core.application.service.dto.FileInfoDto;
 
 import java.time.Duration;
 import java.util.Optional;
@@ -81,15 +83,15 @@ public class FileController {
         log.info("[Download] Start, fileKey={}", fileKey);
         
         return service.getFileInfo(fileKey)
-                .map(info -> buildDownloadResponse(fileKey, info))
+                .map(dto -> buildDownloadResponse(fileKey, dto))
                 .orElseThrow(() -> {
                     log.warn("[StaticResource] File not found, fileKey={}", fileKey);
                     return FileNotFoundException.withoutStack("文件不存在: " + fileKey);
                 });
     }
 
-    private ResponseEntity<Resource> buildDownloadResponse(String fileKey, FileInfo info) {
-        String filename = Optional.ofNullable(info.identity())
+    private ResponseEntity<Resource> buildDownloadResponse(String fileKey, FileInfoDto dto) {
+        String filename = Optional.ofNullable(dto.identity())
                 .map(FileIdentity::fileName)
                 .orElse(fileKey);
 
@@ -97,8 +99,9 @@ public class FileController {
 
         log.info("[Download] Success, fileKey={}, filename={}", fileKey, filename);
 
+        FileInfoResponse response = FileInfoAssembler.toResponse(dto);
         return FileResponseBuilder.forDownload()
-                .fromFileInfo(info)
+                .fromFileInfo(response)
                 .attachment(filename)
                 .defaultCache()
                 .build(resource);
@@ -164,29 +167,31 @@ public class FileController {
      * 上传文件（简单上传）
      * <p>
      * 适用于小文件的直接上传，文件大小受服务器配置限制。
-     * 大文件建议使用 {@link TaskController#createUploadTask} 创建分片上传任务。
+     * 大文件建议使用 {@link TaskController#createTask} 创建分片上传任务。
      *
      * @param fileInfo 文件元数据信息
      * @param file     上传的文件
      * @return 201 Created，响应体包含文件信息，Location 头指向新资源
      */
     @PostMapping("/upload")
-    public ResponseEntity<Result<FileInfo>> uploadFile(
-            @ModelAttribute FileInfo fileInfo,
+    public ResponseEntity<Result<FileInfoResponse>> uploadFile(
+            @ModelAttribute FileInfoResponse fileInfo,
             @RequestParam("file") MultipartFile file) {
         log.info("[Upload] Start, filename={}, contentType={}, size={}", 
                 file.getOriginalFilename(), file.getContentType(), file.getSize());
         
-        FileInfo info = service.upload(fileInfo, file);
-        String resourceUri = SystemConstant.FILE_PATH + "/" + info.identity().fKey();
+        // TODO: 需要 FileInfoResponse → FileInfoDto 的转换，当前上传接口设计需要进一步讨论
+        FileInfoDto dto = service.upload(null, file);
+        FileInfoResponse response = FileInfoAssembler.toResponse(dto);
+        String resourceUri = SystemConstant.FILE_PATH + "/" + response.identity().fKey();
         
         log.info("[Upload] Success, fileKey={}, filename={}, size={}", 
-                info.identity().fKey(), info.identity().fileName(), info.identity().fileSize());
+                response.identity().fKey(), response.identity().fileName(), response.identity().fileSize());
 
         return FileResponseBuilder.forUpload()
-                .fromFileInfo(info)
+                .fromFileInfo(response)
                 .location(resourceUri)
-                .build(Result.success(info));
+                .build(Result.success(response));
     }
 
     /**
@@ -194,13 +199,13 @@ public class FileController {
      * <p>
      * 根据查询条件分页检索文件元数据，支持按文件名、类型、所有者等条件筛选。
      *
-     * @param queryParams 查询条件（所有字段可选）
-     * @param pageable    分页参数，默认 page=0, size=20, 最大 size=100
+     * @param request  查询条件（所有字段可选）
+     * @param pageable 分页参数，默认 page=0, size=20, 最大 size=100
      * @return 分页的文件信息列表
      */
     @PostMapping("/metadata")
-    public Result<Page<FileInfo>> queryMetadata(
-            @Valid @RequestBody MetaQueryParams queryParams,
+    public Result<Page<FileInfoResponse>> queryMetadata(
+            @Valid @RequestBody MetaQueryRequest request,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         
         // 限制最大分页大小，防止一次查询过多数据
@@ -211,11 +216,14 @@ public class FileController {
                     pageable.getPageNumber(), maxPageSize, pageable.getSort());
         }
 
-        log.info("[QueryMetadata] Start, queryParams={}, page={}, size={}",
-                queryParams, pageable.getPageNumber(), pageable.getPageSize());
-        Page<FileInfo> result = service.queryMetadata(queryParams, pageable);
+        log.info("[QueryMetadata] Start, request={}, page={}, size={}",
+                request, pageable.getPageNumber(), pageable.getPageSize());
+        
+        Page<FileInfoDto> dtoPage = service.queryMetadata(FileInfoAssembler.toCriteria(request), pageable);
+        Page<FileInfoResponse> responsePage = dtoPage.map(FileInfoAssembler::toResponse);
+        
         log.info("[QueryMetadata] Success, totalElements={}, totalPages={}, currentSize={}",
-                result.getTotalElements(), result.getTotalPages(), result.getNumberOfElements());
-        return Result.success(result);
+                responsePage.getTotalElements(), responsePage.getTotalPages(), responsePage.getNumberOfElements());
+        return Result.success(responsePage);
     }
 }

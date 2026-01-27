@@ -63,7 +63,7 @@ public sealed interface TaskResponse
     @Builder
     record Completed(
             @JsonUnwrapped TaskSummary summary,
-            FileInfo file,
+            FileInfoResponse file,
             List<DerivedFile> derivedFiles
     ) implements TaskResponse {}
 

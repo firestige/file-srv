@@ -8,7 +8,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import tech.icc.filesrv.core.application.entrypoint.model.FileInfo;
+import tech.icc.filesrv.core.application.entrypoint.model.FileInfoResponse;
 import tech.icc.filesrv.common.vo.audit.AuditInfo;
 import tech.icc.filesrv.common.vo.audit.OwnerInfo;
 import tech.icc.filesrv.common.vo.file.AccessControl;
@@ -98,9 +98,9 @@ public class FileResponseBuilder {
     }
 
     /**
-     * 从 FileInfo 填充所有相关 Headers
+     * 从 FileInfoResponse 填充所有相关 Headers
      */
-    public FileResponseBuilder fromFileInfo(FileInfo fileInfo) {
+    public FileResponseBuilder fromFileInfo(FileInfoResponse fileInfo) {
         if (fileInfo == null) {
             return this;
         }
@@ -166,7 +166,7 @@ public class FileResponseBuilder {
 
     // ==================== 访问控制 ====================
 
-    private void applyAccess(FileInfo.AccessControlView access) {
+    private void applyAccess(FileInfoResponse.AccessControlView access) {
         Optional.ofNullable(access.isPublic())
                 .ifPresent(p -> headers.set(HEADER_PUBLIC, String.valueOf(p)));
         Optional.ofNullable(access.tags())

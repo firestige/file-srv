@@ -14,10 +14,13 @@ import org.springframework.web.bind.annotation.RestController;
 import tech.icc.filesrv.common.constants.SystemConstant;
 import tech.icc.filesrv.common.exception.AccessDeniedException;
 import tech.icc.filesrv.common.exception.FileNotFoundException;
+import tech.icc.filesrv.common.vo.file.AccessControl;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
-import tech.icc.filesrv.core.application.entrypoint.model.FileInfo;
+import tech.icc.filesrv.core.application.entrypoint.assembler.FileInfoAssembler;
+import tech.icc.filesrv.core.application.entrypoint.model.FileInfoResponse;
 import tech.icc.filesrv.core.application.entrypoint.support.FileResponseBuilder;
 import tech.icc.filesrv.core.application.service.FileService;
+import tech.icc.filesrv.core.application.service.dto.FileInfoDto;
 
 import java.util.Optional;
 
@@ -67,15 +70,15 @@ public class StaticResourceController {
             String fileKey) {
         log.info("[StaticResource] Start, fileKey={}", fileKey);
 
-        FileInfo info = service.getFileInfo(fileKey)
+        FileInfoDto dto = service.getFileInfo(fileKey)
                 .orElseThrow(() -> {
                     log.warn("[StaticResource] File not found, fileKey={}", fileKey);
                     return FileNotFoundException.withoutStack("文件不存在: " + fileKey);
                 });
 
         // 检查是否为公开文件
-        boolean isPublic = Optional.ofNullable(info.access())
-                .map(FileInfo.AccessControlView::isPublic)
+        boolean isPublic = Optional.ofNullable(dto.access())
+                .map(AccessControl::isPublic)
                 .orElse(false);
 
         if (!isPublic) {
@@ -83,11 +86,11 @@ public class StaticResourceController {
             throw AccessDeniedException.withoutStack("文件非公开，拒绝访问: " + fileKey);
         }
 
-        return buildDownloadResponse(fileKey, info);
+        return buildDownloadResponse(fileKey, dto);
     }
 
-    private ResponseEntity<Resource> buildDownloadResponse(String fileKey, FileInfo info) {
-        String filename = Optional.ofNullable(info.identity())
+    private ResponseEntity<Resource> buildDownloadResponse(String fileKey, FileInfoDto dto) {
+        String filename = Optional.ofNullable(dto.identity())
                 .map(FileIdentity::fileName)
                 .orElse(fileKey);
 
@@ -95,9 +98,10 @@ public class StaticResourceController {
 
         log.info("[StaticResource] Success, fileKey={}, filename={}", fileKey, filename);
 
+        FileInfoResponse response = FileInfoAssembler.toResponse(dto);
         // 静态资源使用 inline 方式，便于浏览器直接显示
         return FileResponseBuilder.forDownload()
-                .fromFileInfo(info)
+                .fromFileInfo(response)
                 .inline(filename)
                 .defaultCache()
                 .build(resource);
