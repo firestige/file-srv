@@ -26,6 +26,17 @@ public record StorageCopy(
 ) {
 
     /**
+     * 创建新副本（PENDING 状态，默认 HOT 层级）
+     *
+     * @param nodeId 目标节点
+     * @param path   存储路径
+     * @return 新副本
+     */
+    public static StorageCopy create(String nodeId, String path) {
+        return create(nodeId, path, StorageTier.HOT);
+    }
+
+    /**
      * 创建新副本（PENDING 状态）
      *
      * @param nodeId 目标节点

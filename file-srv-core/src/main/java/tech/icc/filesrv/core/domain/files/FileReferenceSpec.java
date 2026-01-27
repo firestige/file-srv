@@ -1,30 +1,36 @@
 package tech.icc.filesrv.core.domain.files;
 
+import java.time.LocalDateTime;
+
 /**
  * 文件引用查询规格
  * <p>
  * 用于构建复杂查询条件。
  *
- * @param ownerId     所有者 ID 过滤
- * @param contentType MIME 类型过滤
+ * @param ownerId         所有者 ID 过滤
  * @param filenamePattern 文件名模式（支持通配符）
+ * @param contentType     MIME 类型过滤
+ * @param startTime       创建时间起始
+ * @param endTime         创建时间截止
  */
 public record FileReferenceSpec(
         String ownerId,
+        String filenamePattern,
         String contentType,
-        String filenamePattern
+        LocalDateTime startTime,
+        LocalDateTime endTime
 ) {
     /**
      * 空规格（不过滤）
      */
     public static FileReferenceSpec empty() {
-        return new FileReferenceSpec(null, null, null);
+        return new FileReferenceSpec(null, null, null, null, null);
     }
 
     /**
      * 按所有者过滤
      */
     public static FileReferenceSpec byOwner(String ownerId) {
-        return new FileReferenceSpec(ownerId, null, null);
+        return new FileReferenceSpec(ownerId, null, null, null, null);
     }
 }

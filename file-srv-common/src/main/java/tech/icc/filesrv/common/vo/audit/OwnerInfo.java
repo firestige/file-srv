@@ -12,4 +12,18 @@ import lombok.Builder;
 public record OwnerInfo(
         String createdBy,
         String creatorName
-) {}
+) {
+    /**
+     * 系统用户
+     */
+    public static OwnerInfo system() {
+        return new OwnerInfo("SYSTEM", "System");
+    }
+
+    /**
+     * 匿名用户
+     */
+    public static OwnerInfo anonymous() {
+        return new OwnerInfo("ANONYMOUS", "Anonymous");
+    }
+}
