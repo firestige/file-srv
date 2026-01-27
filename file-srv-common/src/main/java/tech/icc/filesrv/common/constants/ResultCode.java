@@ -18,6 +18,9 @@ public interface ResultCode {
     /** 400 - 请求参数错误 */
     int BAD_REQUEST = 0x40000;
 
+    /** 403 - 访问被拒绝 */
+    int ACCESS_DENIED = 0x40300;
+
     /** 404 - 文件未找到 */
     int FILE_NOT_FOUND = 0x40400;
 
