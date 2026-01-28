@@ -1,1 +1,2 @@
 tech.icc.filesrv.config.FileServiceAutoConfiguration
+tech.icc.filesrv.config.ExecutorAutoConfiguration

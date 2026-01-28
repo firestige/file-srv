@@ -18,19 +18,16 @@ import tech.icc.filesrv.core.domain.tasks.*;
 import tech.icc.filesrv.core.infra.cache.TaskCacheService;
 import tech.icc.filesrv.core.infra.cache.TaskIdValidator;
 import tech.icc.filesrv.core.infra.event.TaskEventPublisher;
+import tech.icc.filesrv.core.infra.executor.CallbackTaskPublisher;
 import tech.icc.filesrv.core.infra.file.LocalFileManager;
 import tech.icc.filesrv.common.exception.PluginNotFoundException;
 import tech.icc.filesrv.core.infra.plugin.PluginRegistry;
-import tech.icc.filesrv.common.spi.plugin.PluginResult;
-import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
 import tech.icc.filesrv.common.spi.storage.PartETagInfo;
 import tech.icc.filesrv.common.spi.storage.StorageAdapter;
 import tech.icc.filesrv.common.spi.storage.UploadSession;
 
 import java.io.InputStream;
-import java.nio.file.Path;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,6 +37,8 @@ import java.util.Optional;
  * <p>
  * 处理异步上传任务的完整生命周期：创建 → 分片上传 → 完成/中止 → 状态查询。
  * 使用应用层 DTO（TaskInfoDto、PartETagDto），不依赖 API 层类型。
+ * <p>
+ * Callback 执行已迁移到 executor 模块，本服务只负责发布任务消息。
  * <p>
  * 集成缓存和防护机制：
  * <ul>
@@ -59,6 +58,7 @@ public class TaskService {
     private final StorageAdapter storageAdapter;
     private final PluginRegistry pluginRegistry;
     private final TaskEventPublisher eventPublisher;
+    private final CallbackTaskPublisher callbackPublisher;
     private final LocalFileManager localFileManager;
     private final TaskCacheService cacheService;
     private final TaskIdValidator idValidator;
@@ -67,6 +67,7 @@ public class TaskService {
                        StorageAdapter storageAdapter,
                        PluginRegistry pluginRegistry,
                        TaskEventPublisher eventPublisher,
+                       CallbackTaskPublisher callbackPublisher,
                        LocalFileManager localFileManager,
                        TaskCacheService cacheService,
                        TaskIdValidator idValidator) {
@@ -74,6 +75,7 @@ public class TaskService {
         this.storageAdapter = storageAdapter;
         this.pluginRegistry = pluginRegistry;
         this.eventPublisher = eventPublisher;
+        this.callbackPublisher = callbackPublisher;
         this.localFileManager = localFileManager;
         this.cacheService = cacheService;
         this.idValidator = idValidator;
@@ -214,9 +216,13 @@ public class TaskService {
 
             log.info("Upload completed: taskId={}, path={}", taskId, finalPath);
 
-            // 执行 callbacks
-            if (task.getStatus() == TaskStatus.PROCESSING) {
-                executeCallbacks(task);
+            // 发布 callback 任务到 Kafka（异步执行）
+            if (task.getStatus() == TaskStatus.PROCESSING && task.hasCallbacks()) {
+                callbackPublisher.publish(taskId);
+                log.info("Callback task published: taskId={}", taskId);
+            } else if (task.getStatus() == TaskStatus.COMPLETED) {
+                // 无 callback，已直接完成，发布完成事件
+                publishCompletedEvent(task);
             }
 
             return toDto(task);
@@ -279,74 +285,6 @@ public class TaskService {
         publishFailedEvent(task);
     }
 
-    // ==================== Callback 执行 ====================
-
-    private void executeCallbacks(TaskAggregate task) {
-        TaskContext context = task.getContext();
-
-        // 准备本地文件
-        Path localPath = localFileManager.prepareLocalFile(task.getStoragePath(), task.getTaskId());
-        context.put(TaskContext.KEY_LOCAL_FILE_PATH, localPath.toString());
-
-        try {
-            while (task.getCurrentCallback().isPresent()) {
-                String callbackName = task.getCurrentCallback().get();
-
-                log.info("Executing callback: taskId={}, callback={}, index={}",
-                        task.getTaskId(), callbackName, task.getCurrentCallbackIndex());
-
-                try {
-                    SharedPlugin plugin = pluginRegistry.getPlugin(callbackName);
-                    PluginResult result = plugin.apply(context);
-
-                    if (result instanceof PluginResult.Failure failure) {
-                        log.error("Callback failed: taskId={}, callback={}, reason={}",
-                                task.getTaskId(), callbackName, failure.reason());
-                        task.markFailed("Callback [" + callbackName + "] failed: " + failure.reason());
-                        taskRepository.save(task);
-                        updateTaskCache(task);
-                        publishFailedEvent(task);
-                        return;
-                    }
-
-                    if (result instanceof PluginResult.Success success) {
-                        // 合并输出到 context
-                        context.putAll(success.outputs());
-                    }
-
-                    // 推进到下一个 callback
-                    task.advanceCallback();
-                    taskRepository.save(task);
-                    updateTaskCache(task);
-
-                } catch (PluginNotFoundException e) {
-                    log.error("Plugin not found: {}", callbackName);
-                    task.markFailed("Plugin not found: " + callbackName);
-                    taskRepository.save(task);
-                    updateTaskCache(task);
-                    publishFailedEvent(task);
-                    return;
-                } catch (Exception e) {
-                    log.error("Callback execution error: taskId={}, callback={}",
-                            task.getTaskId(), callbackName, e);
-                    task.markFailed("Callback [" + callbackName + "] error: " + e.getMessage());
-                    taskRepository.save(task);
-                    updateTaskCache(task);
-                    publishFailedEvent(task);
-                    return;
-                }
-            }
-
-            // 所有 callback 执行完成
-            log.info("All callbacks completed: taskId={}", task.getTaskId());
-            publishCompletedEvent(task);
-
-        } finally {
-            // 清理本地文件
-            localFileManager.cleanup(task.getTaskId());
-        }
-    }
-
     // ==================== 查询操作 ====================
 
     /**
@@ -374,6 +312,9 @@ public class TaskService {
 
     // ==================== 事件发布 ====================
 
+    /**
+     * 发布完成事件（用于无 callback 的任务）
+     */
     private void publishCompletedEvent(TaskAggregate task) {
         TaskCompletedEvent event = TaskCompletedEvent.of(
                 task.getTaskId(),
@@ -384,7 +325,7 @@ public class TaskService {
                 task.getContentType(),
                 task.getFilename(),
                 task.getContext().getDerivedFiles(),
-                extractPluginOutputs(task.getContext())
+                task.getContext().getPluginOutputs()
         );
         eventPublisher.publishCompleted(event);
     }
@@ -402,27 +343,6 @@ public class TaskService {
             );
         }
         eventPublisher.publishFailed(event);
-    }
-
-    private Map<String, Object> extractPluginOutputs(TaskContext context) {
-        Map<String, Object> outputs = new HashMap<>();
-        for (Map.Entry<String, Object> entry : context.asMap().entrySet()) {
-            // 排除内置 key
-            if (!entry.getKey().startsWith("_") && !isBuiltinKey(entry.getKey())) {
-                outputs.put(entry.getKey(), entry.getValue());
-            }
-        }
-        return outputs;
-    }
-
-    private boolean isBuiltinKey(String key) {
-        return key.equals(TaskContext.KEY_STORAGE_PATH)
-                || key.equals(TaskContext.KEY_LOCAL_FILE_PATH)
-                || key.equals(TaskContext.KEY_FILE_HASH)
-                || key.equals(TaskContext.KEY_CONTENT_TYPE)
-                || key.equals(TaskContext.KEY_FILE_SIZE)
-                || key.equals(TaskContext.KEY_FILENAME)
-                || key.equals(TaskContext.KEY_DERIVED_FILES);
     }
 
     // ==================== 辅助方法 ====================

@@ -278,6 +278,33 @@ public class TaskContext {
     }
 
     /**
+     * 获取 Plugin 输出（排除内置 Key）
+     * <p>
+     * 用于构建完成事件，只返回 Plugin 写入的数据。
+     */
+    public Map<String, Object> getPluginOutputs() {
+        Map<String, Object> outputs = new HashMap<>();
+        for (Map.Entry<String, Object> entry : data.entrySet()) {
+            String key = entry.getKey();
+            // 排除内置 key 和内部 key
+            if (!key.startsWith("_") && !isBuiltinKey(key)) {
+                outputs.put(key, entry.getValue());
+            }
+        }
+        return outputs;
+    }
+
+    private boolean isBuiltinKey(String key) {
+        return key.equals(KEY_STORAGE_PATH)
+                || key.equals(KEY_LOCAL_FILE_PATH)
+                || key.equals(KEY_FILE_HASH)
+                || key.equals(KEY_CONTENT_TYPE)
+                || key.equals(KEY_FILE_SIZE)
+                || key.equals(KEY_FILENAME)
+                || key.equals(KEY_DERIVED_FILES);
+    }
+
+    /**
      * 检查是否包含 Key
      */
     public boolean containsKey(String key) {

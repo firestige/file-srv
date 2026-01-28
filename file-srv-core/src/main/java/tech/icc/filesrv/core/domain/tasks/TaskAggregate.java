@@ -210,6 +210,13 @@ public class TaskAggregate {
     }
 
     /**
+     * 是否有 callback 需要执行
+     */
+    public boolean hasCallbacks() {
+        return callbacks != null && !callbacks.isEmpty();
+    }
+
+    /**
      * 是否已过期
      */
     public boolean isExpired() {

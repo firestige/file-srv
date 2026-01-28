@@ -11,6 +11,8 @@ import tech.icc.filesrv.core.infra.cache.impl.BloomFilterTaskIdValidator;
 import tech.icc.filesrv.core.infra.cache.impl.CaffeineTaskCacheService;
 import tech.icc.filesrv.core.infra.event.TaskEventPublisher;
 import tech.icc.filesrv.core.infra.event.impl.LoggingTaskEventPublisher;
+import tech.icc.filesrv.core.infra.executor.CallbackTaskPublisher;
+import tech.icc.filesrv.core.infra.executor.impl.NoOpCallbackTaskPublisher;
 import tech.icc.filesrv.core.infra.file.LocalFileManager;
 import tech.icc.filesrv.core.infra.file.impl.DefaultLocalFileManager;
 import tech.icc.filesrv.common.spi.storage.StorageAdapter;
@@ -87,6 +89,18 @@ public class FileServiceAutoConfiguration {
                 bloomProps.getExpectedInsertions(),
                 bloomProps.getFpp()
         );
+    }
+
+    /**
+     * 默认 Callback 任务发布器（NoOp 实现）
+     * <p>
+     * 当 Kafka 不可用时使用此实现，仅记录日志。
+     * 启用 Kafka 执行器后会被 ExecutorAutoConfiguration 中的实现覆盖。
+     */
+    @Bean
+    @ConditionalOnMissingBean(CallbackTaskPublisher.class)
+    public CallbackTaskPublisher noOpCallbackTaskPublisher() {
+        return new NoOpCallbackTaskPublisher();
     }
 }
 
