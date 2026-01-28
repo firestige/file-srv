@@ -8,6 +8,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import tech.icc.filesrv.common.constants.ResultCode;
+import tech.icc.filesrv.common.exception.FileServiceException;
 import tech.icc.filesrv.common.vo.audit.OwnerInfo;
 import tech.icc.filesrv.common.vo.file.AccessControl;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
@@ -29,6 +31,9 @@ import tech.icc.filesrv.common.spi.storage.StorageResult;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Optional;
 
@@ -60,6 +65,8 @@ public class FileService {
      * 上传文件
      * <p>
      * 支持内容去重（秒传）：若已存在相同内容，直接增加引用计数。
+     * <p>
+     * 流程优化：边计算哈希边写入临时文件，避免多次读取 InputStream。
      *
      * @param fileInfo 文件信息（包含 owner、access 等元数据）
      * @param file     上传的文件
@@ -70,8 +77,8 @@ public class FileService {
         log.debug("Starting upload: filename={}, size={}", file.getOriginalFilename(), file.getSize());
 
         // 1. 提取元数据
-        OwnerInfo owner = fileInfo.owner() != null ? fileInfo.owner() : OwnerInfo.system();
-        AccessControl access = fileInfo.access() != null ? fileInfo.access() : AccessControl.defaultAccess();
+        OwnerInfo owner = Optional.ofNullable(fileInfo.owner()).orElse(OwnerInfo.system());
+        AccessControl access = Optional.ofNullable(fileInfo.access()).orElse(AccessControl.defaultAccess());
         String filename = file.getOriginalFilename();
         String contentType = file.getContentType();
         long size = file.getSize();
@@ -81,9 +88,16 @@ public class FileService {
         reference = fileReferenceRepository.save(reference);
         log.debug("Created file reference: fKey={}", reference.fKey());
 
-        try (InputStream inputStream = file.getInputStream()) {
-            // 3. 计算内容哈希
-            String contentHash = deduplicationService.computeHash(inputStream);
+        // 3. 创建临时文件，边计算哈希边写入
+        Path tempFile = null;
+        try {
+            tempFile = Files.createTempFile("upload-", ".tmp");
+
+            String contentHash;
+            try (InputStream inputStream = file.getInputStream();
+                 OutputStream outputStream = Files.newOutputStream(tempFile)) {
+                contentHash = deduplicationService.computeHashAndCopy(inputStream, outputStream);
+            }
             log.debug("Computed content hash: {}", contentHash);
 
             // 4. 秒传检查
@@ -91,12 +105,12 @@ public class FileService {
             FileInfo physicalFile;
 
             if (existingFile.isPresent()) {
-                // 秒传：增加引用计数
+                // 秒传：增加引用计数，删除临时文件
                 log.info("Instant upload detected: contentHash={}", contentHash);
                 physicalFile = deduplicationService.incrementReference(contentHash);
             } else {
-                // 需要实际上传
-                physicalFile = uploadToStorage(contentHash, contentType, size, file);
+                // 需要实际上传：从临时文件上传
+                physicalFile = uploadToStorage(contentHash, contentType, size, tempFile);
             }
 
             // 5. 绑定 contentHash 到引用
@@ -113,15 +127,24 @@ public class FileService {
             log.error("Upload failed: fKey={}", reference.fKey(), e);
             // 清理已创建的引用
             fileReferenceRepository.deleteByFKey(reference.fKey());
-            throw new RuntimeException("File upload failed", e);
+            throw new FileServiceException(ResultCode.INTERNAL_ERROR, "File upload failed", e);
+        } finally {
+            // 清理临时文件
+            if (tempFile != null) {
+                try {
+                    Files.deleteIfExists(tempFile);
+                } catch (IOException e) {
+                    log.warn("Failed to delete temp file: {}", tempFile, e);
+                }
+            }
         }
     }
 
     /**
-     * 实际上传文件到存储
+     * 从临时文件上传到存储
      */
     private FileInfo uploadToStorage(String contentHash, String contentType, long size,
-                                     MultipartFile file) throws IOException {
+                                     Path tempFile) throws IOException {
         // 选择存储节点
         StoragePolicy policy = StoragePolicy.defaultPolicy();
         StorageNode node = storageRoutingService.selectNode(policy);
@@ -130,9 +153,9 @@ public class FileService {
         // 构建存储路径
         String storagePath = storageRoutingService.buildStoragePath(contentHash, contentType);
 
-        // 上传文件
+        // 从临时文件上传
         StorageResult result;
-        try (InputStream uploadStream = file.getInputStream()) {
+        try (InputStream uploadStream = Files.newInputStream(tempFile)) {
             result = adapter.upload(storagePath, uploadStream, contentType);
         }
         log.debug("File uploaded to storage: path={}", result.path());

@@ -14,6 +14,7 @@ import tech.icc.filesrv.core.domain.services.DeduplicationService;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Optional;
 
 /**
@@ -42,23 +43,39 @@ public class DeduplicationServiceImpl implements DeduplicationService {
     public String computeHash(InputStream content) throws IOException {
         LongHashFunction xxHash = LongHashFunction.xx(XXHASH_SEED);
         byte[] buffer = new byte[BUFFER_SIZE];
-        long hash = 0;
-        int bytesRead;
-
-        // 使用流式哈希
-        LongTupleHashFunction streamingHash = LongTupleHashFunction.xx128(XXHASH_SEED);
 
         // 简化实现：读取全部内容计算哈希
         // TODO: 对于大文件，考虑使用流式哈希或分块哈希
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        int bytesRead;
         while ((bytesRead = content.read(buffer)) != -1) {
             baos.write(buffer, 0, bytesRead);
         }
 
         byte[] data = baos.toByteArray();
-        hash = xxHash.hashBytes(data);
+        long hash = xxHash.hashBytes(data);
 
         // 转换为16位十六进制字符串
+        return String.format("%016x", hash);
+    }
+
+    @Override
+    public String computeHashAndCopy(InputStream content, OutputStream output) throws IOException {
+        LongHashFunction xxHash = LongHashFunction.xx(XXHASH_SEED);
+        byte[] buffer = new byte[BUFFER_SIZE];
+
+        // 边读取边写入边计算哈希
+        ByteArrayOutputStream hashBuffer = new ByteArrayOutputStream();
+        int bytesRead;
+        while ((bytesRead = content.read(buffer)) != -1) {
+            output.write(buffer, 0, bytesRead);
+            hashBuffer.write(buffer, 0, bytesRead);
+        }
+        output.flush();
+
+        byte[] data = hashBuffer.toByteArray();
+        long hash = xxHash.hashBytes(data);
+
         return String.format("%016x", hash);
     }
 
