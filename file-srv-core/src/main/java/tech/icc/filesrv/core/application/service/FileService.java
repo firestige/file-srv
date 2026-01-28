@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import tech.icc.filesrv.common.constants.ResultCode;
+import tech.icc.filesrv.common.exception.DataCorruptedException;
+import tech.icc.filesrv.common.exception.FileNotFoundException;
+import tech.icc.filesrv.common.exception.FileNotReadyException;
 import tech.icc.filesrv.common.exception.FileServiceException;
 import tech.icc.filesrv.common.vo.audit.OwnerInfo;
 import tech.icc.filesrv.common.vo.file.AccessControl;
@@ -162,25 +165,8 @@ public class FileService {
     public Resource download(String fileKey) {
         log.debug("Downloading file: fKey={}", fileKey);
 
-        // 1. 查找文件引用
-        FileReference reference = fileReferenceRepository.findByFKey(fileKey)
-                .orElseThrow(() -> new IllegalArgumentException("File not found: " + fileKey));
-
-        if (!reference.isBound()) {
-            throw new IllegalStateException("File not ready: " + fileKey);
-        }
-
-        // 2. 获取物理文件信息
-        FileInfo fileInfo = fileInfoRepository.findByContentHash(reference.contentHash())
-                .orElseThrow(() -> new IllegalStateException("Physical file missing: " + reference.contentHash()));
-
-        // 3. 获取主副本
-        StorageCopy primaryCopy = fileInfo.getPrimaryCopy()
-                .orElseThrow(() -> new IllegalStateException("No available copy for: " + reference.contentHash()));
-
-        // 4. 通过适配器下载
-        StorageAdapter adapter = storageRoutingService.getAdapter(primaryCopy.nodeId());
-        return adapter.download(primaryCopy.path());
+        StorageAccess access = resolveStorageAccess(fileKey);
+        return access.adapter().download(access.copy().path());
     }
 
     /**
@@ -214,7 +200,7 @@ public class FileService {
         log.debug("Deleting file: fKey={}", fileKey);
 
         FileReference reference = fileReferenceRepository.findByFKey(fileKey)
-                .orElseThrow(() -> new IllegalArgumentException("File not found: " + fileKey));
+                .orElseThrow(() -> FileNotFoundException.withoutStack("File not found: " + fileKey));
 
         // 减少引用计数
         if (reference.isBound()) {
@@ -239,21 +225,44 @@ public class FileService {
     public String getPresignedUrl(String fileKey, Duration expire) {
         log.debug("Generating presigned URL: fKey={}, expire={}", fileKey, expire);
 
+        StorageAccess access = resolveStorageAccess(fileKey);
+        return access.adapter().generatePresignedUrl(access.copy().path(), expire);
+    }
+
+    // ==================== 私有辅助方法 ====================
+
+    /**
+     * 解析文件的存储访问信息
+     *
+     * @param fileKey 文件唯一标识 (fKey)
+     * @return 存储访问信息（包含副本和适配器）
+     * @throws FileNotFoundException   文件不存在
+     * @throws FileNotReadyException   文件未就绪（PENDING 状态）
+     * @throws DataCorruptedException  数据一致性异常（物理文件丢失或无可用副本）
+     */
+    private StorageAccess resolveStorageAccess(String fileKey) {
         FileReference reference = fileReferenceRepository.findByFKey(fileKey)
-                .orElseThrow(() -> new IllegalArgumentException("File not found: " + fileKey));
+                .orElseThrow(() -> FileNotFoundException.withoutStack("File not found: " + fileKey));
 
         if (!reference.isBound()) {
-            throw new IllegalStateException("File not ready: " + fileKey);
+            throw FileNotReadyException.withoutStack("File not ready: " + fileKey);
         }
 
         FileInfo fileInfo = fileInfoRepository.findByContentHash(reference.contentHash())
-                .orElseThrow(() -> new IllegalStateException("Physical file missing: " + reference.contentHash()));
+                .orElseThrow(() -> DataCorruptedException.withoutStack("Physical file missing: " + reference.contentHash()));
 
         StorageCopy primaryCopy = fileInfo.getPrimaryCopy()
-                .orElseThrow(() -> new IllegalStateException("No available copy"));
+                .orElseThrow(() -> DataCorruptedException.withoutStack("No available copy: " + reference.contentHash()));
 
         StorageAdapter adapter = storageRoutingService.getAdapter(primaryCopy.nodeId());
-        return adapter.generatePresignedUrl(primaryCopy.path(), expire);
+
+        return new StorageAccess(primaryCopy, adapter);
+    }
+
+    /**
+     * 存储访问信息
+     */
+    private record StorageAccess(StorageCopy copy, StorageAdapter adapter) {
     }
 
     /**
