@@ -50,7 +50,7 @@ public class DeduplicationServiceImpl implements DeduplicationService {
 
         // 简化实现：读取全部内容计算哈希
         // TODO: 对于大文件，考虑使用流式哈希或分块哈希
-        ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
         while ((bytesRead = content.read(buffer)) != -1) {
             baos.write(buffer, 0, bytesRead);
         }

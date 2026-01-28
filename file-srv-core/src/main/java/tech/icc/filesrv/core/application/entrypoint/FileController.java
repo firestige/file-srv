@@ -170,7 +170,7 @@ public class FileController {
      * 适用于小文件的直接上传，文件大小受服务器配置限制。
      * 大文件建议使用 {@link TaskController#createTask} 创建分片上传任务。
      *
-     * @param fileInfo 文件元数据信息
+     * @param request 文件元数据信息
      * @param file     上传的文件
      * @return 201 Created，响应体包含文件信息，Location 头指向新资源
      */

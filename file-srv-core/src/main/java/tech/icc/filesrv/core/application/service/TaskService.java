@@ -199,9 +199,8 @@ public class TaskService {
 
         // 恢复会话并完成上传
         String storagePath = buildStoragePath(task.getFKey(), contentType);
-        UploadSession session = storageAdapter.resumeUpload(storagePath, task.getSessionId());
 
-        try {
+        try (UploadSession session = storageAdapter.resumeUpload(storagePath, task.getSessionId())) {
             String finalPath = session.complete(partInfos);
 
             // 更新任务状态
@@ -224,8 +223,6 @@ public class TaskService {
             updateTaskCache(task);
             publishFailedEvent(task);
             throw e;
-        } finally {
-            session.close();
         }
     }
 
@@ -538,13 +535,7 @@ public class TaskService {
                     .request(request)
                     .build();
 
-            case IN_PROGRESS -> TaskInfoDto.InProgress.builder()
-                    .summary(summary)
-                    .request(request)
-                    .progress(toProgress(task))
-                    .build();
-
-            case PROCESSING -> TaskInfoDto.InProgress.builder()
+            case IN_PROGRESS, PROCESSING -> TaskInfoDto.InProgress.builder()
                     .summary(summary)
                     .request(request)
                     .progress(toProgress(task))
