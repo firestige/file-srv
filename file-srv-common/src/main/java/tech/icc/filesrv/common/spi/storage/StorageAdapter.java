@@ -1,4 +1,4 @@
-package tech.icc.filesrv.core.infra.storage;
+package tech.icc.filesrv.common.spi.storage;
 
 import org.springframework.core.io.Resource;
 
@@ -8,8 +8,15 @@ import java.time.Duration;
 /**
  * 存储适配器接口
  * <p>
- * 基础设施层接口，定义与底层存储交互的契约。
+ * SPI 契约，定义与底层存储交互的标准接口。
  * 具体实现在 file-srv-adapters 模块。
+ * <p>
+ * 设计原则：
+ * <ul>
+ *   <li>接口方法不依赖具体存储实现细节</li>
+ *   <li>返回类型使用 SPI 层定义的 DTO，不依赖 JPA 等框架</li>
+ *   <li>未来可独立拆分为 file-srv-spi 模块</li>
+ * </ul>
  */
 public interface StorageAdapter {
 

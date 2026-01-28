@@ -1,8 +1,8 @@
 package tech.icc.filesrv.plugin.example;
 
 import tech.icc.filesrv.common.context.TaskContext;
-import tech.icc.filesrv.core.infra.plugin.PluginResult;
-import tech.icc.filesrv.core.infra.plugin.SharedPlugin;
+import tech.icc.filesrv.common.spi.plugin.PluginResult;
+import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
 
 /**
  * 【类型 C: 数据传递类插件】 - 哈希校验

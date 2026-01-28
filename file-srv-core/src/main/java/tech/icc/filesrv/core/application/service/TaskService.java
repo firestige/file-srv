@@ -21,10 +21,11 @@ import tech.icc.filesrv.core.infra.event.TaskEventPublisher;
 import tech.icc.filesrv.core.infra.file.LocalFileManager;
 import tech.icc.filesrv.core.infra.plugin.PluginNotFoundException;
 import tech.icc.filesrv.core.infra.plugin.PluginRegistry;
-import tech.icc.filesrv.core.infra.plugin.PluginResult;
-import tech.icc.filesrv.core.infra.plugin.SharedPlugin;
-import tech.icc.filesrv.core.infra.storage.StorageAdapter;
-import tech.icc.filesrv.core.infra.storage.UploadSession;
+import tech.icc.filesrv.common.spi.plugin.PluginResult;
+import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
+import tech.icc.filesrv.common.spi.storage.PartETagInfo;
+import tech.icc.filesrv.common.spi.storage.StorageAdapter;
+import tech.icc.filesrv.common.spi.storage.UploadSession;
 
 import java.io.InputStream;
 import java.nio.file.Path;
@@ -201,7 +202,11 @@ public class TaskService {
         String storagePath = buildStoragePath(task.getFKey(), contentType);
 
         try (UploadSession session = storageAdapter.resumeUpload(storagePath, task.getSessionId())) {
-            String finalPath = session.complete(partInfos);
+            // 转换为 SPI 层的 PartETagInfo
+            List<PartETagInfo> partEtags = partInfos.stream()
+                    .map(p -> PartETagInfo.of(p.partNumber(), p.etag()))
+                    .toList();
+            String finalPath = session.complete(partEtags);
 
             // 更新任务状态
             task.completeUpload(finalPath, hash, totalSize, contentType, filename);

@@ -24,8 +24,8 @@ import tech.icc.filesrv.core.domain.services.StorageRoutingService;
 import tech.icc.filesrv.core.domain.storage.StorageCopy;
 import tech.icc.filesrv.core.domain.storage.StorageNode;
 import tech.icc.filesrv.core.domain.storage.StoragePolicy;
-import tech.icc.filesrv.core.infra.storage.StorageAdapter;
-import tech.icc.filesrv.core.infra.storage.StorageResult;
+import tech.icc.filesrv.common.spi.storage.StorageAdapter;
+import tech.icc.filesrv.common.spi.storage.StorageResult;
 
 import java.io.IOException;
 import java.io.InputStream;

@@ -1,4 +1,4 @@
-package tech.icc.filesrv.core.infra.storage;
+package tech.icc.filesrv.common.spi.storage;
 
 import java.time.Instant;
 

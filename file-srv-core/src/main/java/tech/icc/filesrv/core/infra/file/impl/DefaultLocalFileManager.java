@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 import tech.icc.filesrv.core.infra.file.LocalFileManager;
-import tech.icc.filesrv.core.infra.storage.StorageAdapter;
+import tech.icc.filesrv.common.spi.storage.StorageAdapter;
 
 import java.io.IOException;
 import java.io.InputStream;

@@ -7,7 +7,7 @@ import tech.icc.filesrv.core.domain.services.StorageRoutingService;
 import tech.icc.filesrv.core.domain.storage.StorageNode;
 import tech.icc.filesrv.core.domain.storage.StorageNodeRepository;
 import tech.icc.filesrv.core.domain.storage.StoragePolicy;
-import tech.icc.filesrv.core.infra.storage.StorageAdapter;
+import tech.icc.filesrv.common.spi.storage.StorageAdapter;
 import tech.icc.filesrv.core.infra.storage.StorageAdapterRegistry;
 
 import java.util.Map;

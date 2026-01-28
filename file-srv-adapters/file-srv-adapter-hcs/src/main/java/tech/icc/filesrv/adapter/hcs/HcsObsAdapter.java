@@ -11,9 +11,9 @@ import com.obs.services.model.TemporarySignatureResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
-import tech.icc.filesrv.core.infra.storage.StorageAdapter;
-import tech.icc.filesrv.core.infra.storage.StorageResult;
-import tech.icc.filesrv.core.infra.storage.UploadSession;
+import tech.icc.filesrv.common.spi.storage.StorageAdapter;
+import tech.icc.filesrv.common.spi.storage.StorageResult;
+import tech.icc.filesrv.common.spi.storage.UploadSession;
 
 import java.io.InputStream;
 import java.time.Duration;

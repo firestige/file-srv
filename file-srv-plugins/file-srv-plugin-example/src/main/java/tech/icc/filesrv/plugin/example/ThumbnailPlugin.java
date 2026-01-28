@@ -2,8 +2,8 @@ package tech.icc.filesrv.plugin.example;
 
 import tech.icc.filesrv.common.context.TaskContext;
 import tech.icc.filesrv.common.vo.task.DerivedFile;
-import tech.icc.filesrv.core.infra.plugin.PluginResult;
-import tech.icc.filesrv.core.infra.plugin.SharedPlugin;
+import tech.icc.filesrv.common.spi.plugin.PluginResult;
+import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
 
 import java.util.UUID;
 

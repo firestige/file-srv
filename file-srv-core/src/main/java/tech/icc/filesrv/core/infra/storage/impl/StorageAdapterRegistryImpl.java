@@ -2,7 +2,7 @@ package tech.icc.filesrv.core.infra.storage.impl;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import tech.icc.filesrv.core.infra.storage.StorageAdapter;
+import tech.icc.filesrv.common.spi.storage.StorageAdapter;
 import tech.icc.filesrv.core.infra.storage.StorageAdapterRegistry;
 
 import java.util.ArrayList;

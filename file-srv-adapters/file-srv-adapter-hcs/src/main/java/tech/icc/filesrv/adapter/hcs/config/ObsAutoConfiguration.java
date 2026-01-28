@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import tech.icc.filesrv.adapter.hcs.HcsObsAdapter;
-import tech.icc.filesrv.core.infra.storage.StorageAdapter;
+import tech.icc.filesrv.common.spi.storage.StorageAdapter;
 
 /**
  * OBS 自动配置

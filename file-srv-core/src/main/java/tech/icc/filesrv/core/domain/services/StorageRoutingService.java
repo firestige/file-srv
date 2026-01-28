@@ -2,7 +2,7 @@ package tech.icc.filesrv.core.domain.services;
 
 import tech.icc.filesrv.core.domain.storage.StorageNode;
 import tech.icc.filesrv.core.domain.storage.StoragePolicy;
-import tech.icc.filesrv.core.infra.storage.StorageAdapter;
+import tech.icc.filesrv.common.spi.storage.StorageAdapter;
 
 /**
  * 存储路由服务

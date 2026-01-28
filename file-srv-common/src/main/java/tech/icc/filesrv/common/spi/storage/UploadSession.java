@@ -1,6 +1,4 @@
-package tech.icc.filesrv.core.infra.storage;
-
-import tech.icc.filesrv.core.domain.tasks.PartInfo;
+package tech.icc.filesrv.common.spi.storage;
 
 import java.io.InputStream;
 import java.util.List;
@@ -46,10 +44,10 @@ public interface UploadSession extends AutoCloseable {
     /**
      * 完成上传，合并所有分片
      *
-     * @param parts 所有分片信息 (partNumber + etag)
+     * @param parts 所有分片的 ETag 信息 (partNumber + etag)
      * @return 最终文件的存储路径
      */
-    String complete(List<PartInfo> parts);
+    String complete(List<PartETagInfo> parts);
 
     /**
      * 中止上传，清理已上传的分片

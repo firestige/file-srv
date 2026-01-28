@@ -11,5 +11,12 @@
 
     <artifactId>file-srv-common</artifactId>
 
+    <dependencies>
+        <!-- Spring Core for Resource type in StorageAdapter SPI -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+        </dependency>
+    </dependencies>
 
 </project>

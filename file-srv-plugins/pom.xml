@@ -16,9 +16,10 @@
     </modules>
 
     <dependencies>
+        <!-- 只依赖 common 获取 SPI 契约，而非整个 core -->
         <dependency>
             <groupId>tech.icc</groupId>
-            <artifactId>file-srv-core</artifactId>
+            <artifactId>file-srv-common</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
 

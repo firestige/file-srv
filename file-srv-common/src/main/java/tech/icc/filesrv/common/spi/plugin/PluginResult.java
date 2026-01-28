@@ -1,9 +1,11 @@
-package tech.icc.filesrv.core.infra.plugin;
+package tech.icc.filesrv.common.spi.plugin;
 
 import java.util.Map;
 
 /**
  * 插件执行结果
+ * <p>
+ * sealed interface 确保结果只有三种可能：成功、失败、跳过。
  */
 public sealed interface PluginResult {
 

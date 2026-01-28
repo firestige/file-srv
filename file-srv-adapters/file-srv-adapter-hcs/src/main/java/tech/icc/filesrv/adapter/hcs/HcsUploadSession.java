@@ -12,8 +12,8 @@ import com.obs.services.model.PartEtag;
 import com.obs.services.model.UploadPartRequest;
 import com.obs.services.model.UploadPartResult;
 import lombok.extern.slf4j.Slf4j;
-import tech.icc.filesrv.core.domain.tasks.PartInfo;
-import tech.icc.filesrv.core.infra.storage.UploadSession;
+import tech.icc.filesrv.common.spi.storage.PartETagInfo;
+import tech.icc.filesrv.common.spi.storage.UploadSession;
 
 import java.io.InputStream;
 import java.util.Comparator;
@@ -98,12 +98,12 @@ public class HcsUploadSession implements UploadSession {
     }
 
     @Override
-    public String complete(List<PartInfo> parts) {
+    public String complete(List<PartETagInfo> parts) {
         log.info("Completing upload: uploadId={}, parts={}", uploadId, parts.size());
         
         // 按 partNumber 排序并转换为 OBS PartEtag
         List<PartEtag> obsParts = parts.stream()
-                .sorted(Comparator.comparingInt(PartInfo::partNumber))
+                .sorted(Comparator.comparingInt(PartETagInfo::partNumber))
                 .map(p -> new PartEtag(p.etag(), p.partNumber()))
                 .toList();
         

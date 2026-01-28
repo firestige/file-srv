@@ -1,12 +1,14 @@
-package tech.icc.filesrv.core.infra.plugin;
+package tech.icc.filesrv.common.spi.plugin;
 
 import tech.icc.filesrv.common.context.TaskContext;
 
 /**
  * 共享插件接口
  * <p>
- * 定义文件处理插件的生命周期和执行契约。
- * 插件通过 Spring 自动发现机制注册到 {@link PluginRegistry}。
+ * SPI 契约，定义文件处理插件的生命周期和执行规范。
+ * 插件通过 Spring 自动发现机制注册。
+ * <p>
+ * 设计说明：此包未来可独立拆分为 file-srv-spi 模块。
  */
 public interface SharedPlugin {
 
@@ -35,6 +37,7 @@ public interface SharedPlugin {
      *   <li>通过 {@code context.getPluginParam(name(), "paramKey")} 读取插件参数</li>
      *   <li>通过 {@code context.getLocalFilePath()} 获取本地文件路径</li>
      *   <li>通过 {@code context.addDerivedFile()} 添加衍生文件</li>
+     *   <li>通过 {@code context.setMetadata()} 修改文件元数据</li>
      * </ul>
      *
      * @param context 任务上下文
@@ -58,7 +61,7 @@ public interface SharedPlugin {
      *
      * @return 优先级
      */
-    default int priority() {
+    default int order() {
         return 0;
     }
 }

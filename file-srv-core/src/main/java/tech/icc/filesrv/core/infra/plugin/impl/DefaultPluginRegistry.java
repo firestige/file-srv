@@ -3,7 +3,7 @@ package tech.icc.filesrv.core.infra.plugin.impl;
 import org.springframework.stereotype.Component;
 import tech.icc.filesrv.core.infra.plugin.PluginNotFoundException;
 import tech.icc.filesrv.core.infra.plugin.PluginRegistry;
-import tech.icc.filesrv.core.infra.plugin.SharedPlugin;
+import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
 
 import java.util.List;
 import java.util.Map;

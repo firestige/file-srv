@@ -13,7 +13,7 @@ import tech.icc.filesrv.core.infra.event.TaskEventPublisher;
 import tech.icc.filesrv.core.infra.event.impl.LoggingTaskEventPublisher;
 import tech.icc.filesrv.core.infra.file.LocalFileManager;
 import tech.icc.filesrv.core.infra.file.impl.DefaultLocalFileManager;
-import tech.icc.filesrv.core.infra.storage.StorageAdapter;
+import tech.icc.filesrv.common.spi.storage.StorageAdapter;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;

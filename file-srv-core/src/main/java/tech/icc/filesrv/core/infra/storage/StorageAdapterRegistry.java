@@ -1,5 +1,7 @@
 package tech.icc.filesrv.core.infra.storage;
 
+import tech.icc.filesrv.common.spi.storage.StorageAdapter;
+
 import java.util.List;
 
 /**
