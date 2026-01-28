@@ -37,6 +37,58 @@
 2. **状态即结果**：使用 `TaskAggregate.status` 表达链执行最终状态
 3. **异常表达异常**：超时、执行错误等用具体异常类型表达
 4. **最小化 API**：接口简洁，实现灵活
+5. **Task 级调度**：以 Task 为最小调度单元，避免跨节点文件传输开销
+
+### 1.4 调度粒度设计
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           调度粒度决策                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ❌ Plugin 级调度（错误方案）                                                 │
+│  ─────────────────────────────                                              │
+│                                                                             │
+│  Task-1: [callback-A, callback-B, callback-C]                               │
+│                                                                             │
+│  Node A 执行 callback-A:                                                    │
+│    1. 下载文件到本地 (/tmp/task-1/file.jpg)                                  │
+│    2. callback-A 处理                                                       │
+│    3. 清理本地文件                                                           │
+│                                                                             │
+│  Node B 执行 callback-B:                                                    │
+│    1. 重新下载文件到本地 ❌ 浪费带宽                                          │
+│    2. callback-B 处理                                                       │
+│    3. 清理本地文件                                                           │
+│                                                                             │
+│  ─────────────────────────────────────────────────────────────────────────  │
+│                                                                             │
+│  ✅ Task 级调度（正确方案）                                                   │
+│  ─────────────────────────────                                              │
+│                                                                             │
+│  Task-1: [callback-A, callback-B, callback-C]                               │
+│                                                                             │
+│  Node A 执行整个 Task:                                                       │
+│    1. 下载文件到本地 (/tmp/task-1/file.jpg)                                  │
+│    2. callback-A 处理 ✓                                                     │
+│    3. callback-B 处理 ✓  ← 复用本地文件                                      │
+│    4. callback-C 处理 ✓  ← 复用本地文件                                      │
+│    5. 清理本地文件                                                           │
+│                                                                             │
+│  只有节点故障时，其他节点才接手（此时重新下载不可避免）                         │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**关键设计决策**：
+
+| 场景 | 处理方式 | 说明 |
+|------|----------|------|
+| 单个 callback 超时 | **本地重试** | 不重新发布消息，在当前节点重试 |
+| 单个 callback 失败 | **本地重试或标记失败** | 可重试则本地重试，否则整个 Task 失败 |
+| 整个链执行超时 | **标记失败** | 发送到 DLT，人工介入 |
+| 节点崩溃 | **Kafka rebalance** | 消息重新投递给其他节点，需重新下载文件 |
+| 服务重启 | **从 DB 恢复** | 查询 PROCESSING 状态任务，重新下载执行 |
 
 ## 二、整体架构
 
@@ -168,6 +220,9 @@
  * Callback 任务消息
  * <p>
  * 发布到 Kafka 的消息格式，触发 callback 链执行。
+ * <p>
+ * 注意：消息只在 Task 完成上传时发布一次，整个 callback 链在同一节点执行。
+ * 不支持中途迁移到其他节点（避免重复下载文件）。
  */
 public record CallbackTaskMessage(
     /** 消息唯一标识（用于幂等） */
@@ -176,42 +231,22 @@ public record CallbackTaskMessage(
     /** 任务标识 */
     String taskId,
     
-    /** 起始 callback 索引（支持断点恢复） */
-    int startIndex,
-    
     /** 发布时间 */
     Instant publishedAt,
     
     /** 截止时间（超过不再执行） */
     Instant deadline,
     
-    /** 重试次数 */
-    int retryCount,
-    
     /** 来源节点（调试用） */
     String sourceNode
 ) {
-    public static CallbackTaskMessage create(String taskId, int startIndex, Duration deadline) {
+    public static CallbackTaskMessage create(String taskId, Duration deadline) {
         return new CallbackTaskMessage(
             UUID.randomUUID().toString(),
             taskId,
-            startIndex,
             Instant.now(),
             Instant.now().plus(deadline),
-            0,
             getNodeId()
-        );
-    }
-
-    public CallbackTaskMessage withRetry() {
-        return new CallbackTaskMessage(
-            this.messageId,
-            this.taskId,
-            this.startIndex,
-            this.publishedAt,
-            this.deadline,
-            this.retryCount + 1,
-            this.sourceNode
         );
     }
 
@@ -227,11 +262,13 @@ public record CallbackTaskMessage(
 |------|------|------|
 | `messageId` | String | UUID，用于幂等检查，防止重复消费 |
 | `taskId` | String | 任务标识，同时作为分区键保证顺序 |
-| `startIndex` | int | 起始 callback 索引，支持断点恢复 |
 | `publishedAt` | Instant | 发布时间，用于监控延迟 |
 | `deadline` | Instant | 截止时间，超过则跳过执行 |
-| `retryCount` | int | 重试次数，用于退避策略和最大重试判断 |
 | `sourceNode` | String | 来源节点，便于问题排查 |
+
+> **注意**：移除了 `startIndex` 和 `retryCount` 字段，因为：
+> - 整个 callback 链在同一节点执行，断点恢复通过 DB 中的 `currentCallbackIndex` 实现
+> - 重试在本地进行，不重新发布消息
 
 ### 3.3 分区策略
 
@@ -241,7 +278,7 @@ public record CallbackTaskMessage(
 效果：
 • 同一任务的消息总是路由到同一分区
 • 保证同一任务的消息顺序消费
-• 避免并发执行同一任务的不同 callback
+• 配合消费者组实现负载均衡
 ```
 
 ### 3.4 死信消息格式
@@ -322,34 +359,26 @@ public record DeadLetterMessage(
  * Callback 任务发布者
  * <p>
  * 负责将 callback 任务发布到 Kafka。
+ * 消息只在 Task 完成上传时发布一次。
  */
 public interface CallbackTaskPublisher {
 
     /**
      * 发布 callback 任务
+     * <p>
+     * 整个 callback 链将在消费节点执行，不会中途迁移。
      *
-     * @param taskId     任务标识
-     * @param startIndex 起始 callback 索引
+     * @param taskId 任务标识
      */
-    void publish(String taskId, int startIndex);
+    void publish(String taskId);
 
     /**
      * 发布 callback 任务（带自定义 deadline）
      *
-     * @param taskId     任务标识
-     * @param startIndex 起始 callback 索引
-     * @param deadline   截止时间
+     * @param taskId   任务标识
+     * @param deadline 截止时间
      */
-    void publish(String taskId, int startIndex, Duration deadline);
-
-    /**
-     * 延迟发布（用于重试退避）
-     *
-     * @param taskId     任务标识
-     * @param startIndex 起始 callback 索引
-     * @param delay      延迟时间
-     */
-    void publishWithDelay(String taskId, int startIndex, Duration delay);
+    void publish(String taskId, Duration deadline);
 }
 ```
 
@@ -410,19 +439,21 @@ public interface CallbackChainRunner {
     /**
      * 执行 callback 链
      * <p>
-     * 从 startIndex 开始执行，直到：
+     * 从 task.currentCallbackIndex 开始执行（支持断点恢复），直到：
      * <ul>
      *   <li>全部完成 → task.status = COMPLETED</li>
      *   <li>某个失败 → task.status = FAILED</li>
      *   <li>超时 → 抛出 CallbackTimeoutException</li>
      * </ul>
+     * <p>
+     * 整个链在当前节点执行，单个 callback 失败会本地重试，
+     * 不会将任务迁移到其他节点。
      * 
-     * @param task       任务聚合（状态为 PROCESSING）
-     * @param startIndex 起始 callback 索引
-     * @throws CallbackTimeoutException 执行超时
-     * @throws CallbackExecutionException 执行异常
+     * @param task 任务聚合（状态为 PROCESSING）
+     * @throws CallbackTimeoutException 执行超时（重试耗尽）
+     * @throws CallbackExecutionException 执行异常（不可重试）
      */
-    void run(TaskAggregate task, int startIndex);
+    void run(TaskAggregate task);
 }
 ```
 
@@ -519,9 +550,9 @@ public interface IdempotencyChecker {
 │      taskRepository.save(task);                                           │
 │      updateTaskCache(task);                                               │
 │                                                                           │
-│      // 3. 发布 callback 任务到 Kafka                                     │
+│      // 3. 发布 callback 任务到 Kafka（只发布一次）                         │
 │      if (task.hasCallbacks()) {                                           │
-│          callbackPublisher.publish(task.getTaskId(), 0);                  │
+│          callbackPublisher.publish(task.getTaskId());                     │
 │      } else {                                                             │
 │          // 无 callback，直接标记完成                                      │
 │          task.markCompleted();                                            │
@@ -569,8 +600,9 @@ public void consume(CallbackTaskMessage msg, Acknowledgment ack) {
     }
     
     try {
-        // 4. 执行 callback 链
-        chainRunner.run(task, msg.startIndex());
+        // 4. 执行整个 callback 链（从 currentCallbackIndex 开始）
+        //    所有 callback 在当前节点完成，本地重试
+        chainRunner.run(task);
         
         // 5. 标记幂等
         idempotencyChecker.markProcessed(msg.messageId(), properties.getIdempotencyTtl());
@@ -580,13 +612,16 @@ public void consume(CallbackTaskMessage msg, Acknowledgment ack) {
         metrics.recordSuccess();
         
     } catch (CallbackTimeoutException e) {
-        handleTimeout(e, msg, ack);
+        // 重试耗尽，标记失败，发送 DLT
+        handleFinalTimeout(e, msg, task, ack);
         
     } catch (CallbackExecutionException e) {
-        handleExecutionError(e, msg, ack);
+        // 不可重试异常，标记失败，发送 DLT
+        handleFinalError(e, msg, task, ack);
         
     } catch (Exception e) {
         // 未预期异常：不 ack，让 Kafka 重投递
+        // 注意：重投递可能到其他节点，需要重新下载文件
         log.error("Unexpected error: taskId={}", msg.taskId(), e);
         metrics.recordError();
         throw e;
@@ -594,19 +629,30 @@ public void consume(CallbackTaskMessage msg, Acknowledgment ack) {
 }
 ```
 
-### 5.3 Callback 链执行流程
+### 5.3 Callback 链执行流程（本地重试）
 
 ```java
+/**
+ * 在单节点内执行整个 callback 链，支持本地重试。
+ * 
+ * 设计原则：
+ * - 从 task.currentCallbackIndex 开始执行（断点恢复）
+ * - 每个 callback 允许本地重试 maxRetries 次
+ * - 重试之间有指数退避间隔
+ * - 只有不可恢复异常才向上抛出
+ * - 整个链在同一节点完成，避免文件重复下载
+ */
 @Override
-public void run(TaskAggregate task, int startIndex) {
+public void run(TaskAggregate task) {
     TaskContext context = task.getContext();
     
-    // 1. 准备本地文件
+    // 1. 准备本地文件（只下载一次）
     Path localPath = localFileManager.prepare(task.getStoragePath(), task.getTaskId());
     context.put(TaskContext.KEY_LOCAL_FILE_PATH, localPath.toString());
     
     try {
         List<String> callbacks = task.getCallbacks();
+        int startIndex = task.getCurrentCallbackIndex();
         
         // 2. 从 startIndex 开始执行
         for (int i = startIndex; i < callbacks.size(); i++) {
@@ -614,8 +660,8 @@ public void run(TaskAggregate task, int startIndex) {
             log.info("Executing callback: taskId={}, callback={}, index={}", 
                      task.getTaskId(), callbackName, i);
             
-            // 3. 执行单个 callback（带超时）
-            PluginResult result = executeWithTimeout(task.getTaskId(), callbackName, context, i);
+            // 3. 执行单个 callback（带本地重试）
+            PluginResult result = executeWithLocalRetry(task.getTaskId(), callbackName, context, i);
             
             // 4. 解释 PluginResult
             switch (result) {
@@ -658,81 +704,186 @@ public void run(TaskAggregate task, int startIndex) {
     }
 }
 
-private PluginResult executeWithTimeout(String taskId, String callbackName, 
-                                        TaskContext context, int index) {
+/**
+ * 带本地重试执行单个 callback
+ */
+private PluginResult executeWithLocalRetry(String taskId, String callbackName, 
+                                           TaskContext context, int index) {
     SharedPlugin plugin = pluginRegistry.getPlugin(callbackName);
+    int maxRetries = properties.getRetry().maxRetriesPerCallback();
+    Duration baseBackoff = properties.getRetry().backoff();
     
-    Future<PluginResult> future = timeoutExecutor.submit(() -> plugin.apply(context));
-    
-    try {
-        return future.get(properties.getCallbackTimeout().toMillis(), TimeUnit.MILLISECONDS);
-    } catch (TimeoutException e) {
-        future.cancel(true);
-        throw new CallbackTimeoutException(taskId, callbackName, index);
-    } catch (ExecutionException e) {
-        Throwable cause = e.getCause();
-        throw new CallbackExecutionException(taskId, callbackName, index, 
-                                             cause.getMessage(), isRetryable(cause));
-    } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new CallbackExecutionException(taskId, callbackName, index, 
-                                             "Interrupted", true);
+    for (int attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            // 重试前等待（指数退避）
+            if (attempt > 0) {
+                Duration delay = baseBackoff.multipliedBy((long) Math.pow(2, attempt - 1));
+                log.info("Retry callback: taskId={}, callback={}, attempt={}, delay={}",
+                    taskId, callbackName, attempt, delay);
+                Thread.sleep(delay.toMillis());
+            }
+            
+            // 执行 callback（带超时）
+            Future<PluginResult> future = timeoutExecutor.submit(() -> plugin.apply(context));
+            return future.get(properties.getTimeout().callback().toMillis(), TimeUnit.MILLISECONDS);
+            
+        } catch (TimeoutException e) {
+            log.warn("Callback timeout: taskId={}, callback={}, attempt={}",
+                taskId, callbackName, attempt);
+            
+            if (attempt >= maxRetries) {
+                throw new CallbackTimeoutException(taskId, callbackName, index);
+            }
+            // 继续本地重试
+            
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            boolean retryable = isRetryable(cause);
+            
+            log.warn("Callback error: taskId={}, callback={}, attempt={}, retryable={}, error={}",
+                taskId, callbackName, attempt, retryable, cause.getMessage());
+            
+            if (!retryable || attempt >= maxRetries) {
+                throw new CallbackExecutionException(taskId, callbackName, index, 
+                                                     cause.getMessage(), retryable);
+            }
+            // 继续本地重试
+            
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new CallbackExecutionException(taskId, callbackName, index, "Interrupted", false);
+        }
     }
+    
+    // 不应该到达这里
+    throw new CallbackExecutionException(taskId, callbackName, index, "Unknown error", false);
+}
+
+/**
+ * 判断异常是否可本地重试
+ */
+private boolean isRetryable(Throwable cause) {
+    // 临时性故障可重试
+    if (cause instanceof IOException 
+            || cause instanceof SocketTimeoutException
+            || cause instanceof ConnectException) {
+        return true;
+    }
+    
+    // 业务逻辑错误不可重试
+    if (cause instanceof IllegalArgumentException
+            || cause instanceof ValidationException
+            || cause instanceof SecurityException) {
+        return false;
+    }
+    
+    // 默认不重试，保守策略
+    return false;
 }
 ```
 
-### 5.4 重试与死信处理
+### 5.4 最终失败与死信处理
+
+由于重试在节点内部完成，Consumer 层只需要处理最终失败：
 
 ```java
-private void handleTimeout(CallbackTimeoutException e, CallbackTaskMessage msg, Acknowledgment ack) {
-    if (canRetry(msg)) {
-        // 从超时位置重试
-        Duration delay = retryPolicy.getDelay(msg.retryCount());
-        log.warn("Callback timeout, retrying: taskId={}, callback={}, delay={}", 
-                 msg.taskId(), e.getCallbackName(), delay);
-        publisher.publishWithDelay(msg.taskId(), e.getCallbackIndex(), delay);
-    } else {
-        // 重试耗尽
-        TaskAggregate task = taskRepository.findByTaskId(msg.taskId()).orElse(null);
-        if (task != null) {
-            task.markFailed("Callback timeout after retries: " + e.getCallbackName());
-            taskRepository.save(task);
-            eventPublisher.publishFailed(task);
-        }
-        sendToDlt(msg, "Timeout after " + msg.retryCount() + " retries");
-    }
+/**
+ * 处理超时异常（本地重试已耗尽）
+ */
+private void handleFinalTimeout(CallbackTimeoutException e, CallbackTaskMessage msg, 
+                                TaskAggregate task, Acknowledgment ack) {
+    // 标记任务失败
+    task.markFailed("Callback [" + e.getCallbackName() + "] timeout after retries");
+    taskRepository.save(task);
+    eventPublisher.publishFailed(task);
+    
+    // 发送死信
+    sendToDlt(msg, "Timeout: " + e.getCallbackName());
+    
+    // 确认原消息
     ack.acknowledge();
     metrics.recordTimeout();
+    
+    log.error("Task failed due to timeout: taskId={}, callback={}", 
+              msg.taskId(), e.getCallbackName());
 }
 
-private void handleExecutionError(CallbackExecutionException e, CallbackTaskMessage msg, Acknowledgment ack) {
-    if (e.isRetryable() && canRetry(msg)) {
-        Duration delay = retryPolicy.getDelay(msg.retryCount());
-        log.warn("Callback error, retrying: taskId={}, callback={}, delay={}", 
-                 msg.taskId(), e.getCallbackName(), delay);
-        publisher.publishWithDelay(msg.taskId(), e.getCallbackIndex(), delay);
-    } else {
-        // 不可重试或重试耗尽
-        sendToDlt(msg, e.getMessage());
-    }
+/**
+ * 处理执行异常（不可重试或重试已耗尽）
+ */
+private void handleFinalError(CallbackExecutionException e, CallbackTaskMessage msg, 
+                              TaskAggregate task, Acknowledgment ack) {
+    // 标记任务失败
+    task.markFailed("Callback [" + e.getCallbackName() + "] failed: " + e.getMessage());
+    taskRepository.save(task);
+    eventPublisher.publishFailed(task);
+    
+    // 发送死信
+    sendToDlt(msg, e.getMessage());
+    
+    // 确认原消息
     ack.acknowledge();
     metrics.recordFailure();
+    
+    log.error("Task failed due to execution error: taskId={}, callback={}, error={}", 
+              msg.taskId(), e.getCallbackName(), e.getMessage());
 }
 
-private boolean canRetry(CallbackTaskMessage msg) {
-    return msg.retryCount() < retryPolicy.getMaxRetries() && !msg.isExpired();
-}
-
+/**
+ * 发送死信
+ */
 private void sendToDlt(CallbackTaskMessage msg, String reason) {
     DeadLetterMessage dlt = new DeadLetterMessage(
-        msg, reason, Instant.now(), 
-        "unknown",  // 可从异常中获取
+        msg.taskId(),
+        msg.messageId(),
+        reason,
+        Instant.now(),
         nodeId
     );
     dltPublisher.publish(dlt);
     log.error("Message sent to DLT: taskId={}, reason={}", msg.taskId(), reason);
 }
+
+/**
+ * 死信消息结构（简化版）
+ */
+public record DeadLetterMessage(
+    String taskId,
+    String originalMessageId,
+    String failureReason,
+    Instant failedAt,
+    String failedNodeId
+) {}
 ```
+
+### 5.5 节点故障恢复
+
+当 Consumer 节点崩溃时（未预期异常或进程被杀），Kafka 会触发 rebalance，消息被其他节点重新消费：
+
+```
+节点故障恢复流程：
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│  Node A (崩溃)                    Node B (接手)                          │
+│  ────────────                    ────────────                           │
+│                                                                         │
+│  1. 正在执行 Task-1 的           5. Kafka rebalance，                    │
+│     callback[2]                     Task-1 消息被 Node B 消费            │
+│                                                                         │
+│  2. 进程崩溃                     6. 加载 Task-1，发现                     │
+│     (未 ack)                        currentCallbackIndex = 2            │
+│                                                                         │
+│  3. Kafka 检测心跳丢失           7. 重新下载文件到本地                     │
+│                                     (代价：一次文件下载)                  │
+│  4. 触发 rebalance               8. 从 callback[2] 继续执行              │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+关键点：
+- **断点恢复**：通过 DB 中的 `currentCallbackIndex` 实现
+- **代价可控**：节点故障是低频事件，偶尔重新下载文件可接受
+- **幂等检查**：新节点需检查 messageId 防止重复处理
 
 ## 六、配置设计
 
@@ -790,25 +941,25 @@ public record ExecutorProperties(
     }
     
     public record RetryConfig(
-        /** 最大重试次数 */
-        int maxRetries,
-        /** 首次重试延迟 */
-        Duration initialDelay,
+        /** 单个 callback 最大本地重试次数 */
+        int maxRetriesPerCallback,
+        /** 首次重试退避时间 */
+        Duration backoff,
         /** 退避乘数 */
         double backoffMultiplier,
-        /** 最大延迟 */
-        Duration maxDelay
+        /** 最大退避时间 */
+        Duration maxBackoff
     ) {
         public RetryConfig {
-            if (maxRetries <= 0) maxRetries = 3;
-            if (initialDelay == null) initialDelay = Duration.ofSeconds(1);
+            if (maxRetriesPerCallback <= 0) maxRetriesPerCallback = 3;
+            if (backoff == null) backoff = Duration.ofSeconds(1);
             if (backoffMultiplier <= 0) backoffMultiplier = 2.0;
-            if (maxDelay == null) maxDelay = Duration.ofMinutes(1);
+            if (maxBackoff == null) maxBackoff = Duration.ofMinutes(1);
         }
         
-        public Duration getDelay(int retryCount) {
-            long delay = (long) (initialDelay.toMillis() * Math.pow(backoffMultiplier, retryCount));
-            return Duration.ofMillis(Math.min(delay, maxDelay.toMillis()));
+        public Duration getBackoff(int attemptNumber) {
+            long delay = (long) (backoff.toMillis() * Math.pow(backoffMultiplier, attemptNumber));
+            return Duration.ofMillis(Math.min(delay, maxBackoff.toMillis()));
         }
     }
     
@@ -836,14 +987,14 @@ file-service:
       
     timeout:
       callback: 5m                      # 单个 callback 超时
-      chain: 30m                        # 整个链超时
+      chain: 30m                        # 整个链超时（预留）
       task-deadline: 1h                 # 任务最大等待时间
       
     retry:
-      max-retries: 3
-      initial-delay: 1s
-      backoff-multiplier: 2.0
-      max-delay: 1m
+      max-retries-per-callback: 3       # 单个 callback 本地重试次数
+      backoff: 1s                       # 首次重试退避
+      backoff-multiplier: 2.0           # 指数退避乘数
+      max-backoff: 1m                   # 最大退避时间
       
     idempotency:
       ttl: 24h                          # 幂等 key 过期时间
@@ -912,13 +1063,38 @@ file-srv-core/src/main/java/tech/icc/filesrv/core/infra/executor/
 
 | 决策点 | 选择 | 理由 |
 |--------|------|------|
+| **调度粒度** | Task 级别（非 Plugin 级别） | 避免跨节点文件重复下载，一个 Task 的所有 callback 在同一节点执行 |
+| **重试位置** | 节点内本地重试 | 保持文件本地化，避免网络开销，只有节点故障才触发跨节点迁移 |
 | **分布式队列** | Kafka | 持久化、负载均衡、原生重试支持、生态成熟 |
 | **消费模式** | 手动 ack | 精确控制消息确认时机，避免消息丢失 |
 | **幂等实现** | Redis SET NX | 简单高效，支持 TTL 自动过期 |
 | **状态持久化** | 每个 callback 完成后持久化 | 支持断点恢复，代价是 DB 写入 |
 | **超时实现** | `Future.get(timeout)` + 中断 | 标准做法，需插件支持中断 |
 | **返回值设计** | 复用 `PluginResult` + 异常 | 避免重复定义，层次清晰 |
-| **重试策略** | 指数退避 | 避免瞬时故障时的重试风暴 |
+| **退避策略** | 本地指数退避 | 避免瞬时故障时的重试风暴 |
+
+### 8.2 调度粒度 vs 重试策略
+
+```
+方案对比：
+┌──────────────────────────────────────────────────────────────────────────┐
+│                                                                          │
+│  方案 A: Plugin 级别调度（❌ 弃用）                                        │
+│  ─────────────────────────                                               │
+│  - 每个 callback 失败后重新发布 Kafka 消息                                │
+│  - 可能被其他节点消费，需要重新下载文件                                    │
+│  - 带宽浪费：N 个 callback × M 次重试 = N*M 次潜在下载                     │
+│                                                                          │
+│  方案 B: Task 级别调度 + 本地重试（✅ 采用）                               │
+│  ───────────────────────────────                                         │
+│  - Task 消息只发布一次                                                    │
+│  - 整个 callback 链在同一节点执行                                         │
+│  - 单个 callback 失败时在本地重试（指数退避）                              │
+│  - 文件只下载一次，重试复用本地文件                                        │
+│  - 只有节点故障时才迁移，代价可控                                         │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
 
 ### 8.2 与单机方案对比
 
