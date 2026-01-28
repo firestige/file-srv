@@ -3,6 +3,7 @@ package tech.icc.filesrv.core.domain.services.impl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.hashing.LongHashFunction;
+import net.openhft.hashing.LongTupleHashFunction;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tech.icc.filesrv.core.domain.files.FileInfo;
@@ -10,6 +11,7 @@ import tech.icc.filesrv.core.domain.files.FileInfoRepository;
 import tech.icc.filesrv.core.domain.files.FileStatus;
 import tech.icc.filesrv.core.domain.services.DeduplicationService;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Optional;
@@ -44,12 +46,11 @@ public class DeduplicationServiceImpl implements DeduplicationService {
         int bytesRead;
 
         // 使用流式哈希
-        net.openhft.hashing.LongTupleHashFunction streamingHash = 
-                net.openhft.hashing.LongTupleHashFunction.xx128(XXHASH_SEED);
+        LongTupleHashFunction streamingHash = LongTupleHashFunction.xx128(XXHASH_SEED);
 
         // 简化实现：读取全部内容计算哈希
         // TODO: 对于大文件，考虑使用流式哈希或分块哈希
-        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
         while ((bytesRead = content.read(buffer)) != -1) {
             baos.write(buffer, 0, bytesRead);
         }

@@ -1,7 +1,13 @@
 package tech.icc.filesrv.adapter.hcs;
 
 import com.obs.services.ObsClient;
-import com.obs.services.model.*;
+import com.obs.services.model.HttpMethodEnum;
+import com.obs.services.model.ObjectMetadata;
+import com.obs.services.model.ObsObject;
+import com.obs.services.model.PutObjectRequest;
+import com.obs.services.model.PutObjectResult;
+import com.obs.services.model.TemporarySignatureRequest;
+import com.obs.services.model.TemporarySignatureResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
@@ -11,7 +17,6 @@ import tech.icc.filesrv.core.infra.storage.UploadSession;
 
 import java.io.InputStream;
 import java.time.Duration;
-import java.util.Date;
 
 /**
  * 华为云 OBS 存储适配器实现

@@ -2,7 +2,15 @@ package tech.icc.filesrv.adapter.hcs;
 
 import com.obs.services.ObsClient;
 import com.obs.services.exception.ObsException;
-import com.obs.services.model.*;
+import com.obs.services.model.AbortMultipartUploadRequest;
+import com.obs.services.model.CompleteMultipartUploadRequest;
+import com.obs.services.model.CompleteMultipartUploadResult;
+import com.obs.services.model.InitiateMultipartUploadRequest;
+import com.obs.services.model.InitiateMultipartUploadResult;
+import com.obs.services.model.ObjectMetadata;
+import com.obs.services.model.PartEtag;
+import com.obs.services.model.UploadPartRequest;
+import com.obs.services.model.UploadPartResult;
 import lombok.extern.slf4j.Slf4j;
 import tech.icc.filesrv.core.domain.tasks.PartInfo;
 import tech.icc.filesrv.core.infra.storage.UploadSession;
