@@ -32,6 +32,16 @@ public interface DeduplicationService {
     String computeHash(InputStream content) throws IOException;
 
     /**
+     * 计算内容哈希（xxHash-64）
+     * <p>
+     * 适用于小文件（如 10MB 以内），已加载到内存的场景。
+     *
+     * @param content 文件内容字节数组
+     * @return 哈希值（十六进制字符串）
+     */
+    String computeHash(byte[] content);
+
+    /**
      * 计算内容哈希，同时将内容写入输出流
      * <p>
      * 用于避免多次读取输入流：边计算哈希边写入临时文件或存储。

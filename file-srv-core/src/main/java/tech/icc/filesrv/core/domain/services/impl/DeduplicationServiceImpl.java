@@ -52,16 +52,19 @@ public class DeduplicationServiceImpl implements DeduplicationService {
             baos.write(buffer, 0, bytesRead);
         }
 
-        byte[] data = baos.toByteArray();
-        long hash = xxHash.hashBytes(data);
+        return computeHash(baos.toByteArray());
+    }
 
+    @Override
+    public String computeHash(byte[] content) {
+        LongHashFunction xxHash = LongHashFunction.xx(XXHASH_SEED);
+        long hash = xxHash.hashBytes(content);
         // 转换为16位十六进制字符串
         return String.format("%016x", hash);
     }
 
     @Override
     public String computeHashAndCopy(InputStream content, OutputStream output) throws IOException {
-        LongHashFunction xxHash = LongHashFunction.xx(XXHASH_SEED);
         byte[] buffer = new byte[BUFFER_SIZE];
 
         // 边读取边写入边计算哈希
@@ -73,10 +76,7 @@ public class DeduplicationServiceImpl implements DeduplicationService {
         }
         output.flush();
 
-        byte[] data = hashBuffer.toByteArray();
-        long hash = xxHash.hashBytes(data);
-
-        return String.format("%016x", hash);
+        return computeHash(hashBuffer.toByteArray());
     }
 
     @Override
