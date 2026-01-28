@@ -1,5 +1,8 @@
 package tech.icc.filesrv.core.application.service;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -13,6 +16,7 @@ import tech.icc.filesrv.common.exception.DataCorruptedException;
 import tech.icc.filesrv.common.exception.FileNotFoundException;
 import tech.icc.filesrv.common.exception.FileNotReadyException;
 import tech.icc.filesrv.common.exception.FileServiceException;
+import tech.icc.filesrv.common.exception.PayloadTooLargeException;
 import tech.icc.filesrv.common.vo.audit.OwnerInfo;
 import tech.icc.filesrv.common.vo.file.AccessControl;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
@@ -57,10 +61,16 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class FileService {
 
+    /**
+     * 同步上传最大文件大小：10MB
+     */
+    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024;
+
     private final FileReferenceRepository fileReferenceRepository;
     private final FileInfoRepository fileInfoRepository;
     private final DeduplicationService deduplicationService;
     private final StorageRoutingService storageRoutingService;
+    private final MeterRegistry meterRegistry;
 
     /**
      * 上传文件
@@ -75,7 +85,18 @@ public class FileService {
      */
     @Transactional
     public FileInfoDto upload(FileInfoDto fileInfo, MultipartFile file) {
+        Timer.Sample sample = Timer.start(meterRegistry);
+        boolean instant = false;
+        String status = "failure";
+        
         log.debug("Starting upload: filename={}, size={}", file.getOriginalFilename(), file.getSize());
+
+        // 0. 文件大小校验
+        if (file.getSize() > MAX_FILE_SIZE) {
+            counter("file.upload.rejected", "reason", "size_limit").increment();
+            throw PayloadTooLargeException.withoutStack(
+                    "File size exceeds limit: " + file.getSize() + " > " + MAX_FILE_SIZE);
+        }
 
         // 1. 提取元数据
         OwnerInfo owner = Optional.ofNullable(fileInfo.owner()).orElse(OwnerInfo.system());
@@ -103,6 +124,7 @@ public class FileService {
                 // 秒传：增加引用计数
                 log.info("Instant upload detected: contentHash={}", contentHash);
                 physicalFile = deduplicationService.incrementReference(contentHash);
+                instant = true;
             } else {
                 // 需要实际上传：从内存上传
                 physicalFile = uploadToStorage(contentHash, contentType, size, content);
@@ -113,16 +135,30 @@ public class FileService {
             reference = reference.withAccess(access);
             reference = fileReferenceRepository.save(reference);
 
+            status = "success";
             log.info("Upload completed: fKey={}, contentHash={}, instant={}",
-                    reference.fKey(), contentHash, existingFile.isPresent());
+                    reference.fKey(), contentHash, instant);
 
             return toDto(reference, physicalFile);
 
         } catch (IOException e) {
-            log.error("Upload failed: fKey={}", reference.fKey(), e);
-            // 清理已创建的引用
-            fileReferenceRepository.deleteByFKey(reference.fKey());
+            status = "io_error";
+            log.error("Upload IO error: fKey={}", reference.fKey(), e);
+            cleanupFailedUpload(reference.fKey());
             throw new FileServiceException(ResultCode.INTERNAL_ERROR, "File upload failed", e);
+            
+        } catch (RuntimeException e) {
+            // 捕获所有运行时异常（包括超时、数据库异常等）
+            status = "runtime_error";
+            log.error("Upload runtime error: fKey={}", reference.fKey(), e);
+            cleanupFailedUpload(reference.fKey());
+            throw e;
+            
+        } finally {
+            // Metric 埋点
+            sample.stop(timer("file.upload.duration", "status", status, "instant", String.valueOf(instant)));
+            counter("file.upload.total", "status", status, "instant", String.valueOf(instant)).increment();
+            meterRegistry.summary("file.upload.size.bytes").record(size);
         }
     }
 
@@ -230,6 +266,36 @@ public class FileService {
     }
 
     // ==================== 私有辅助方法 ====================
+
+    /**
+     * 清理失败的上传
+     */
+    private void cleanupFailedUpload(String fKey) {
+        try {
+            fileReferenceRepository.deleteByFKey(fKey);
+            log.debug("Cleaned up failed upload: fKey={}", fKey);
+        } catch (Exception e) {
+            log.error("Failed to cleanup upload: fKey={}", fKey, e);
+        }
+    }
+
+    /**
+     * 获取或创建 Counter
+     */
+    private Counter counter(String name, String... tags) {
+        return Counter.builder(name)
+                .tags(tags)
+                .register(meterRegistry);
+    }
+
+    /**
+     * 获取或创建 Timer
+     */
+    private Timer timer(String name, String... tags) {
+        return Timer.builder(name)
+                .tags(tags)
+                .register(meterRegistry);
+    }
 
     /**
      * 解析文件的存储访问信息

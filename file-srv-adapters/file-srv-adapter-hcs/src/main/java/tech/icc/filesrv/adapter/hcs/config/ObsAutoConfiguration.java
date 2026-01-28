@@ -21,8 +21,11 @@ public class ObsAutoConfiguration {
     public ObsClient obsClient(ObsProperties properties) {
         ObsConfiguration config = new ObsConfiguration();
         config.setEndPoint(properties.getEndpoint());
-        config.setSocketTimeout(30000);
-        config.setConnectionTimeout(10000);
+        
+        // 超时配置
+        ObsProperties.Timeout timeout = properties.getTimeout();
+        config.setConnectionTimeout((int) timeout.getConnect().toMillis());
+        config.setSocketTimeout((int) timeout.getSocket().toMillis());
         
         return new ObsClient(
                 properties.getAccessKey(),

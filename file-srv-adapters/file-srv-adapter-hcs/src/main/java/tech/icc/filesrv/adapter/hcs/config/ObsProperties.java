@@ -28,4 +28,22 @@ public class ObsProperties {
 
     /** 预签名 URL 过期时间，默认 1 小时 */
     private Duration presignedUrlExpiration = Duration.ofHours(1);
+
+    /** 超时配置 */
+    private Timeout timeout = new Timeout();
+
+    /**
+     * 超时配置
+     */
+    @Data
+    public static class Timeout {
+        /** 连接超时，默认 5 秒 */
+        private Duration connect = Duration.ofSeconds(5);
+
+        /** Socket 读取超时，默认 60 秒（10MB / 170KB/s ≈ 60s） */
+        private Duration socket = Duration.ofSeconds(60);
+
+        /** 写入超时（暂不支持，OBS SDK 无此配置） */
+        // private Duration write = Duration.ofSeconds(60);
+    }
 }
