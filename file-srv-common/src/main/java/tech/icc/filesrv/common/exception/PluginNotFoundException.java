@@ -1,4 +1,4 @@
-package tech.icc.filesrv.core.infra.plugin;
+package tech.icc.filesrv.common.exception;
 
 /**
  * 插件未找到异常
