@@ -175,6 +175,54 @@ public class TaskContext {
         data.remove(key);
     }
 
+    // ==================== 元数据修改操作 ====================
+
+    /** 元数据变更记录 Key（内部使用） */
+    public static final String KEY_METADATA_CHANGES = "_metadataChanges";
+
+    // --- 元数据字段常量 ---
+    /** 文件名字段 */
+    public static final String METADATA_FILENAME = "filename";
+    /** MIME 类型字段 */
+    public static final String METADATA_CONTENT_TYPE = "contentType";
+
+    /**
+     * 设置元数据字段值（通用方法）
+     * <p>
+     * 供元数据修改类插件调用，变更会在 callback 链全部成功后应用到 FileReference。
+     * <p>
+     * 支持的字段：
+     * <ul>
+     *   <li>{@link #METADATA_FILENAME} - 文件名</li>
+     *   <li>{@link #METADATA_CONTENT_TYPE} - MIME 类型</li>
+     * </ul>
+     *
+     * @param field 元数据字段名，建议使用 {@code METADATA_*} 常量
+     * @param value 新值
+     */
+    public void setMetadata(String field, String value) {
+        getMetadataChanges().put(field, value);
+    }
+
+    /**
+     * 获取元数据变更记录
+     *
+     * @return 元数据变更 Map，key 为字段名，value 为新值
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, String> getMetadataChanges() {
+        return (Map<String, String>) data.computeIfAbsent(
+                KEY_METADATA_CHANGES, k -> new HashMap<String, String>());
+    }
+
+    /**
+     * 是否有元数据变更
+     */
+    public boolean hasMetadataChanges() {
+        Object changes = data.get(KEY_METADATA_CHANGES);
+        return changes instanceof Map<?, ?> map && !map.isEmpty();
+    }
+
     // ==================== 衍生文件操作 ====================
 
     /**
