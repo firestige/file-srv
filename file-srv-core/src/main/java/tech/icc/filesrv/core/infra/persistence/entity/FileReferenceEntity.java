@@ -44,6 +44,9 @@ public class FileReferenceEntity {
     @Column(name = "size")
     private Long size;
 
+    @Column(name = "etag", length = 128)
+    private String eTag;
+
     @Column(name = "owner_id", length = 64)
     private String ownerId;
 
@@ -73,6 +76,7 @@ public class FileReferenceEntity {
                 .filename(ref.filename())
                 .contentType(ref.contentType())
                 .size(ref.size())
+                .eTag(ref.eTag())
                 .ownerId(ref.owner() != null ? ref.owner().createdBy() : null)
                 .ownerName(ref.owner() != null ? ref.owner().creatorName() : null)
                 .status(ref.contentHash() != null ? FileStatus.ACTIVE : FileStatus.PENDING)
@@ -92,6 +96,7 @@ public class FileReferenceEntity {
                 filename,
                 contentType,
                 size,
+                eTag,
                 new tech.icc.filesrv.common.vo.audit.OwnerInfo(ownerId, ownerName),
                 new tech.icc.filesrv.common.vo.file.AccessControl(isPublic != null && isPublic, null, java.util.Map.of()),
                 new tech.icc.filesrv.common.vo.audit.AuditInfo(createdAt, updatedAt)

@@ -1,5 +1,6 @@
 package tech.icc.filesrv.common.vo.task;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
 /**
@@ -8,7 +9,7 @@ import lombok.Builder;
  * @param filename    intended file name
  * @param contentType expected MIME type
  * @param size        expected file size in bytes
- * @param checksum    expected checksum for validation
+ * @param eTag        expected eTag/checksum for validation
  * @param location    target storage location
  */
 @Builder
@@ -16,6 +17,6 @@ public record FileRequest(
         String filename,
         String contentType,
         Long size,
-        String checksum,
+        @JsonProperty("eTag") String eTag,
         String location
 ) {}

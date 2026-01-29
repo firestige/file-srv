@@ -1,5 +1,6 @@
 package tech.icc.filesrv.common.vo.task;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
 import java.time.Instant;
@@ -25,14 +26,14 @@ public record UploadProgress(
      *
      * @param partNumber part sequence number (1-based)
      * @param size       part size in bytes
-     * @param checksum   part checksum (ETag)
+     * @param eTag       part eTag/checksum
      * @param uploadedAt timestamp when the part was uploaded
      */
     @Builder
     public record PartInfo(
             int partNumber,
             long size,
-            String checksum,
+            @JsonProperty("eTag") String eTag,
             Instant uploadedAt
     ) {}
 }

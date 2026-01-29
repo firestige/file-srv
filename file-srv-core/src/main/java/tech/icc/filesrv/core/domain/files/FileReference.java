@@ -17,6 +17,7 @@ import java.util.UUID;
  * @param filename    用户可见文件名
  * @param contentType MIME 类型
  * @param size        文件大小（字节）
+ * @param eTag        文件 ETag/校验和（用于完整性验证）
  * @param owner       所有者信息
  * @param access      访问控制
  * @param audit       审计信息
@@ -27,6 +28,7 @@ public record FileReference(
         String filename,
         String contentType,
         Long size,
+        String eTag,
         OwnerInfo owner,
         AccessControl access,
         AuditInfo audit
@@ -48,6 +50,7 @@ public record FileReference(
                 filename,
                 contentType,
                 size,
+                null,  // eTag 待计算
                 owner,
                 AccessControl.defaultAccess(),
                 AuditInfo.now()
@@ -62,7 +65,20 @@ public record FileReference(
      */
     public FileReference bindContent(String contentHash) {
         return new FileReference(
-                fKey, contentHash, filename, contentType, size, owner, access, audit
+                fKey, contentHash, filename, contentType, size, eTag, owner, access, audit
+        );
+    }
+
+    /**
+     * 绑定内容和 ETag
+     *
+     * @param contentHash 物理文件的 contentHash
+     * @param eTag        文件 ETag
+     * @return 绑定后的文件引用
+     */
+    public FileReference bindContent(String contentHash, String eTag) {
+        return new FileReference(
+                fKey, contentHash, filename, contentType, size, eTag, owner, access, audit
         );
     }
 
@@ -71,7 +87,7 @@ public record FileReference(
      */
     public FileReference withAccess(AccessControl newAccess) {
         return new FileReference(
-                fKey, contentHash, filename, contentType, size, owner, newAccess, audit.touch()
+                fKey, contentHash, filename, contentType, size, eTag, owner, newAccess, audit.touch()
         );
     }
 
@@ -80,7 +96,7 @@ public record FileReference(
      */
     public FileReference rename(String newFilename) {
         return new FileReference(
-                fKey, contentHash, newFilename, contentType, size, owner, access, audit.touch()
+                fKey, contentHash, newFilename, contentType, size, eTag, owner, access, audit.touch()
         );
     }
 

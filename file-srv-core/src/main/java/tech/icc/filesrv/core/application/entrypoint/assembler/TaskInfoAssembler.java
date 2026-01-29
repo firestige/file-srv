@@ -76,8 +76,6 @@ public final class TaskInfoAssembler {
             return TaskResponse.Pending.builder()
                     .summary(p.summary())
                     .request(p.request())
-                    .uploadUrl(p.uploadUrl())
-                    .partUploadUrls(p.partUploadUrls())
                     .build();
         }
 

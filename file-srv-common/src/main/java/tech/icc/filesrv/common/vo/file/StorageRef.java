@@ -1,5 +1,6 @@
 package tech.icc.filesrv.common.vo.file;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
 /**

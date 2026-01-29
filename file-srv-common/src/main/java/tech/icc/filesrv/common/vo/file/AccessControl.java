@@ -1,5 +1,6 @@
 package tech.icc.filesrv.common.vo.file;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
 import java.util.Map;
@@ -13,9 +14,9 @@ import java.util.Map;
  */
 @Builder
 public record AccessControl(
-        Boolean isPublic,
+        @JsonProperty("public") Boolean isPublic,
         String tags,
-        Map<String, String> customMetadata
+        @JsonProperty("customMetaData") Map<String, String> customMetadata
 ) {
     /**
      * 默认访问控制（私有）

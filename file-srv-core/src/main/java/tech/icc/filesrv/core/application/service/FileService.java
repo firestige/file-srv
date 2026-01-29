@@ -363,6 +363,7 @@ public class FileService {
                 .fileName(ref.filename())
                 .fileType(ref.contentType())
                 .fileSize(ref.size())
+                .eTag(ref.eTag())
                 .build();
 
         StorageRef storageRef = null;

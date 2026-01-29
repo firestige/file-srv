@@ -451,6 +451,7 @@ public class TaskService {
                 .filename(task.getFilename())
                 .contentType(task.getContentType())
                 .size(task.getTotalSize())
+                .eTag(null)  // TODO: 从 task 中获取 eTag
                 .build();
 
         return switch (task.getStatus()) {
@@ -506,7 +507,7 @@ public class TaskService {
                 .map(p -> UploadProgress.PartInfo.builder()
                         .partNumber(p.partNumber())
                         .size(p.size())
-                        .checksum(p.etag())
+                        .eTag(p.etag())
                         .build())
                 .toList();
         

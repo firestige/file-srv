@@ -1,5 +1,6 @@
 package tech.icc.filesrv.common.vo.file;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
 /**
@@ -9,11 +10,13 @@ import lombok.Builder;
  * @param fileName original file name
  * @param fileType MIME type, e.g., "image/png"
  * @param fileSize file size in bytes
+ * @param eTag     file checksum/ETag for integrity verification
  */
 @Builder
 public record FileIdentity(
-        String fKey,
+        @JsonProperty("fkey") String fKey,
         String fileName,
         String fileType,
-        Long fileSize
+        Long fileSize,
+        String eTag
 ) {}
