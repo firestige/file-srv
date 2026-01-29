@@ -175,6 +175,14 @@ public class FileServiceProperties {
     public static class BloomFilterProperties {
 
         /**
+         * 是否使用 Redis 布隆过滤器（多节点部署推荐）
+         * <p>
+         * true:  使用 Redis 实现（全局共享，适合分布式）
+         * false: 使用本地内存实现（单节点场景）
+         */
+        private boolean useRedis = true;
+
+        /**
          * 预期插入数量
          */
         private int expectedInsertions = 1000000;
@@ -183,6 +191,14 @@ public class FileServiceProperties {
          * 误判率 (False Positive Probability)
          */
         private double fpp = 0.01;
+
+        public boolean isUseRedis() {
+            return useRedis;
+        }
+
+        public void setUseRedis(boolean useRedis) {
+            this.useRedis = useRedis;
+        }
 
         public int getExpectedInsertions() {
             return expectedInsertions;

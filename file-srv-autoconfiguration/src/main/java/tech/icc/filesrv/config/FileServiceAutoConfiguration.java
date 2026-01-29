@@ -1,7 +1,10 @@
 package tech.icc.filesrv.config;
 
+import org.redisson.api.RedissonClient;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -9,6 +12,7 @@ import tech.icc.filesrv.core.infra.cache.TaskCacheService;
 import tech.icc.filesrv.core.infra.cache.TaskIdValidator;
 import tech.icc.filesrv.core.infra.cache.impl.BloomFilterTaskIdValidator;
 import tech.icc.filesrv.core.infra.cache.impl.CaffeineTaskCacheService;
+import tech.icc.filesrv.core.infra.cache.impl.RedisBloomTaskIdValidator;
 import tech.icc.filesrv.core.infra.event.TaskEventPublisher;
 import tech.icc.filesrv.core.infra.event.impl.LoggingTaskEventPublisher;
 import tech.icc.filesrv.core.infra.executor.CallbackTaskPublisher;
@@ -75,9 +79,44 @@ public class FileServiceAutoConfiguration {
     }
 
     /**
-     * 任务ID校验器（基于布隆过滤器）
+     * 任务ID校验器 - Redis 布隆过滤器实现（优先）
      * <p>
-     * 配置项：
+     * 适用于多节点部署，全局共享布隆过滤器状态。
+     * 要求：
+     * <ul>
+     *   <li>Redis 可用且配置了 Redisson</li>
+     *   <li>file-srv.bloom-filter.use-redis=true（默认）</li>
+     * </ul>
+     * 
+     * <p>配置项：
+     * - file-srv.bloom-filter.expected-insertions: 预期插入数量，默认 1000000
+     * - file-srv.bloom-filter.fpp: 误判率，默认 0.01
+     */
+    @Bean
+    @ConditionalOnBean(RedissonClient.class)
+    @ConditionalOnProperty(name = "file-srv.bloom-filter.use-redis", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnMissingBean(TaskIdValidator.class)
+    public TaskIdValidator redisBloomTaskIdValidator(RedissonClient redissonClient,
+                                                     FileServiceProperties properties) {
+        FileServiceProperties.BloomFilterProperties bloomProps = properties.getBloomFilter();
+        return new RedisBloomTaskIdValidator(
+                redissonClient,
+                bloomProps.getExpectedInsertions(),
+                bloomProps.getFpp()
+        );
+    }
+
+    /**
+     * 任务ID校验器 - 本地布隆过滤器实现（备选）
+     * <p>
+     * 适用于单节点部署或 Redis 不可用场景。
+     * <p><b>限制：</b>
+     * <ul>
+     *   <li>本地内存存储，进程重启后丢失</li>
+     *   <li>多节点部署时，每个节点独立维护（效果打折）</li>
+     * </ul>
+     * 
+     * <p>配置项：
      * - file-srv.bloom-filter.expected-insertions: 预期插入数量，默认 1000000
      * - file-srv.bloom-filter.fpp: 误判率，默认 0.01
      */
