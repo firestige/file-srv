@@ -32,6 +32,16 @@ build/
 ### VS Code ###
 .vscode/
 
+### Dev tools (node) ###
+# dev tools directory
+.dev-tools/node_modules/
+.dev-tools/package-lock.json
+# legacy root artifacts (moved into .dev-tools)
+package-lock.json
+node_modules/
+.prettierrc
+.markdownlint.json
+
 ### Mac OS ###
 .DS_Store.flattened-pom.xml
 .flattened-pom.xml
