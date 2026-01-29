@@ -94,18 +94,18 @@ public class TaskController {
      * 使用流式传输，无需预先声明 Content-Length。
      *
      * @param taskId     任务标识
-     * @param partNumber 分片序号（1-10000）
+     * @param partNumber 分片序号（1-10000），通过查询参数传递
      * @param request    HTTP 请求（用于获取输入流）
      * @return 分片 ETag
      */
-    @PutMapping("/{taskId}/parts/{partNumber}")
+    @PutMapping("/{taskId}")
     public Result<PartETag> uploadPart(
             @PathVariable("taskId")
             @NotBlank(message = "任务标识不能为空")
             @Size(max = MAX_TASK_ID_LENGTH, message = "任务标识长度不能超过 64 字符")
             String taskId,
 
-            @PathVariable("partNumber")
+            @RequestParam("partNumber")
             @Min(value = 1, message = "分片序号最小为 1")
             @Max(value = MAX_PART_NUMBER, message = "分片序号最大为 10000")
             int partNumber,

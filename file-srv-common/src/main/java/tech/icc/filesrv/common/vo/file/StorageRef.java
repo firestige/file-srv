@@ -1,6 +1,5 @@
 package tech.icc.filesrv.common.vo.file;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
 /**
@@ -9,7 +8,7 @@ import lombok.Builder;
  * @param storageType storage type, e.g., "HCS", "S3", "LOCAL"
  * @param location    storage location/bucket name
  * @param path        object path within the storage
- * @param checksum    file checksum for integrity verification
+ * @param eTag        file ETag/checksum for integrity verification
  * @param fileUrl     public access URL if available
  */
 @Builder
@@ -17,6 +16,6 @@ public record StorageRef(
         String storageType,
         String location,
         String path,
-        String checksum,
+        String eTag,
         String fileUrl
 ) {}

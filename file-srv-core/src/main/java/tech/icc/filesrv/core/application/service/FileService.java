@@ -19,7 +19,9 @@ import tech.icc.filesrv.common.exception.FileServiceException;
 import tech.icc.filesrv.common.exception.PayloadTooLargeException;
 import tech.icc.filesrv.common.vo.audit.OwnerInfo;
 import tech.icc.filesrv.common.vo.file.AccessControl;
+import tech.icc.filesrv.common.vo.file.CustomMetadata;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
+import tech.icc.filesrv.common.vo.file.FileTags;
 import tech.icc.filesrv.common.vo.file.StorageRef;
 import tech.icc.filesrv.core.application.service.dto.FileInfoDto;
 import tech.icc.filesrv.core.application.service.dto.MetaQueryCriteria;
@@ -101,6 +103,8 @@ public class FileService {
         // 1. 提取元数据
         OwnerInfo owner = Optional.ofNullable(fileInfo.owner()).orElse(OwnerInfo.system());
         AccessControl access = Optional.ofNullable(fileInfo.access()).orElse(AccessControl.defaultAccess());
+        FileTags fileTags = Optional.ofNullable(fileInfo.fileTags()).orElse(FileTags.empty());
+        CustomMetadata metadata = Optional.ofNullable(fileInfo.metadata()).orElse(CustomMetadata.empty());
         String filename = file.getOriginalFilename();
         String contentType = file.getContentType();
         long size = file.getSize();
@@ -372,7 +376,7 @@ public class FileService {
             storageRef = StorageRef.builder()
                     .storageType(copy.nodeId())  // Phase 1: nodeId 即 type
                     .path(copy.path())
-                    .checksum(info.contentHash())
+                    .eTag(info.contentHash())
                     .build();
         }
 

@@ -12,7 +12,9 @@ import tech.icc.filesrv.core.application.entrypoint.model.FileInfoResponse;
 import tech.icc.filesrv.common.vo.audit.AuditInfo;
 import tech.icc.filesrv.common.vo.audit.OwnerInfo;
 import tech.icc.filesrv.common.vo.file.AccessControl;
+import tech.icc.filesrv.common.vo.file.CustomMetadata;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
+import tech.icc.filesrv.common.vo.file.FileTags;
 import tech.icc.filesrv.common.vo.file.StorageRef;
 
 import java.nio.charset.StandardCharsets;
@@ -61,7 +63,7 @@ public class FileResponseBuilder {
     public static final String HEADER_PUBLIC = "x-file-public";
 
     /** 文件校验和 */
-    public static final String HEADER_CHECKSUM = "x-file-checksum";
+    public static final String HEADER_ETAG = "ETag";
 
     // ==================== 构建器实例 ====================
 
@@ -109,7 +111,11 @@ public class FileResponseBuilder {
         Optional.ofNullable(fileInfo.storageRef()).ifPresent(this::applyStorage);
         Optional.ofNullable(fileInfo.owner()).ifPresent(this::applyOwner);
         Optional.ofNullable(fileInfo.audit()).ifPresent(this::applyAudit);
-        Optional.ofNullable(fileInfo.access()).ifPresent(this::applyAccess);
+        
+        // 分别应用三个独立的 VO
+        Optional.ofNullable(fileInfo.access()).ifPresent(this::applyAccessControl);
+        Optional.ofNullable(fileInfo.fileTags()).ifPresent(this::applyTags);
+        Optional.ofNullable(fileInfo.metadata()).ifPresent(this::applyMetadata);
 
         return this;
     }
@@ -137,10 +143,10 @@ public class FileResponseBuilder {
                 .ifPresent(t -> headers.set(HEADER_STORAGE_TYPE, t));
         Optional.ofNullable(storage.location())
                 .ifPresent(l -> headers.set(HEADER_STORAGE_LOCATION, l));
-        Optional.ofNullable(storage.checksum())
-                .ifPresent(c -> {
-                    headers.setETag("\"" + c + "\"");
-                    headers.set(HEADER_CHECKSUM, c);
+        Optional.ofNullable(storage.eTag())
+                .ifPresent(e -> {
+                    headers.setETag("\"" + e + "\"");
+                    headers.set(HEADER_ETAG, e);
                 });
     }
 
@@ -166,15 +172,19 @@ public class FileResponseBuilder {
 
     // ==================== 访问控制 ====================
 
-    private void applyAccess(FileInfoResponse.AccessControlView access) {
+    private void applyAccessControl(AccessControl access) {
         Optional.ofNullable(access.isPublic())
                 .ifPresent(p -> headers.set(HEADER_PUBLIC, String.valueOf(p)));
-        Optional.ofNullable(access.tags())
+    }
+
+    private void applyTags(FileTags fileTags) {
+        Optional.ofNullable(fileTags.tags())
                 .filter(t -> !t.isBlank())
                 .ifPresent(t -> headers.set(HEADER_PREFIX_META + "tags", t));
+    }
 
-        // 自定义元数据
-        Optional.ofNullable(access.customMetadata()).ifPresent(meta ->
+    private void applyMetadata(CustomMetadata metadata) {
+        Optional.ofNullable(metadata.customMetadata()).ifPresent(meta ->
                 meta.forEach((k, v) -> headers.set(HEADER_PREFIX_META + k, v)));
     }
 

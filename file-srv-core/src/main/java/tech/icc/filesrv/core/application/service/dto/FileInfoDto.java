@@ -4,7 +4,9 @@ import lombok.Builder;
 import tech.icc.filesrv.common.vo.audit.AuditInfo;
 import tech.icc.filesrv.common.vo.audit.OwnerInfo;
 import tech.icc.filesrv.common.vo.file.AccessControl;
+import tech.icc.filesrv.common.vo.file.CustomMetadata;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
+import tech.icc.filesrv.common.vo.file.FileTags;
 import tech.icc.filesrv.common.vo.file.StorageRef;
 
 /**
@@ -18,6 +20,8 @@ import tech.icc.filesrv.common.vo.file.StorageRef;
  * @param owner      所有者信息
  * @param audit      审计信息
  * @param access     访问控制
+ * @param fileTags   文件标签
+ * @param metadata   自定义元数据
  */
 @Builder
 public record FileInfoDto(
@@ -25,5 +29,7 @@ public record FileInfoDto(
         StorageRef storageRef,
         OwnerInfo owner,
         AuditInfo audit,
-        AccessControl access
+        AccessControl access,
+        FileTags fileTags,
+        CustomMetadata metadata
 ) {}

@@ -1,5 +1,9 @@
 package tech.icc.filesrv.core.application.entrypoint.assembler;
 
+import tech.icc.filesrv.common.vo.file.AccessControl;
+import tech.icc.filesrv.common.vo.file.CustomMetadata;
+import tech.icc.filesrv.common.vo.file.FileTags;
+import tech.icc.filesrv.core.application.entrypoint.model.FileMeta;
 import tech.icc.filesrv.core.application.entrypoint.model.FileInfoResponse;
 import tech.icc.filesrv.core.application.entrypoint.model.FileUploadRequest;
 import tech.icc.filesrv.core.application.entrypoint.model.MetaQueryRequest;
@@ -34,11 +38,15 @@ public final class FileInfoAssembler {
             return FileInfoDto.builder()
                     .owner(null)
                     .access(null)
+                    .fileTags(null)
+                    .metadata(null)
                     .build();
         }
         return FileInfoDto.builder()
-                .owner(request.toOwnerInfo())
-                .access(request.toAccessControl())
+                .owner(request.owner())
+                .access(request.access() != null ? request.access() : AccessControl.defaultAccess())
+                .fileTags(request.fileTags() != null ? request.fileTags() : FileTags.empty())
+                .metadata(request.metadata() != null ? request.metadata() : CustomMetadata.empty())
                 .build();
     }
 
@@ -62,6 +70,35 @@ public final class FileInfoAssembler {
                 .build();
     }
 
+    /**
+     * 将应用层 DTO 转换为元数据响应（FileMeta）
+     * <p>
+     * FileMeta 用于元数据查询接口，包含文件标识、所有者、访问控制和审计信息，
+     * 不包含存储引用（StorageRef）信息。
+     *
+     * @param dto 应用层 DTO
+     * @return 元数据响应
+     */
+    public static FileMeta toFileMeta(FileInfoDto dto) {
+        if (dto == null) {
+            return null;
+        }
+        
+        // 确保所有 VO 都有默认值
+        AccessControl access = dto.access() != null ? dto.access() : AccessControl.defaultAccess();
+        FileTags tags = dto.fileTags() != null ? dto.fileTags() : FileTags.empty();
+        CustomMetadata metadata = dto.metadata() != null ? dto.metadata() : CustomMetadata.empty();
+        
+        return FileMeta.builder()
+                .identity(dto.identity())
+                .owner(dto.owner())
+                .access(access)
+                .fileTags(tags)
+                .metadata(metadata)
+                .audit(dto.audit())
+                .build();
+    }
+
     // ==================== Dto → Response ====================
 
     /**
@@ -74,12 +111,20 @@ public final class FileInfoAssembler {
         if (dto == null) {
             return null;
         }
+        
+        // 确保所有 VO 都有默认值
+        AccessControl access = dto.access() != null ? dto.access() : AccessControl.defaultAccess();
+        FileTags tags = dto.fileTags() != null ? dto.fileTags() : FileTags.empty();
+        CustomMetadata metadata = dto.metadata() != null ? dto.metadata() : CustomMetadata.empty();
+        
         return FileInfoResponse.builder()
                 .identity(dto.identity())
                 .storageRef(dto.storageRef())
                 .owner(dto.owner())
                 .audit(dto.audit())
-                .access(FileInfoResponse.AccessControlView.from(dto.access()))
+                .access(access)
+                .fileTags(tags)
+                .metadata(metadata)
                 .build();
     }
 }

@@ -3,32 +3,33 @@ package tech.icc.filesrv.common.vo.file;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
-import java.util.Map;
-
 /**
- * Access control and extensions.
+ * Access control - defines file visibility.
  *
- * @param isPublic       whether the file is publicly accessible
- * @param tags           comma-separated tags for categorization
- * @param customMetadata custom metadata key-value pairs
+ * @param isPublic whether the file is publicly accessible
  */
 @Builder
 public record AccessControl(
-        @JsonProperty("public") Boolean isPublic,
-        String tags,
-        @JsonProperty("customMetaData") Map<String, String> customMetadata
+        @JsonProperty("public") Boolean isPublic
 ) {
     /**
      * 默认访问控制（私有）
      */
     public static AccessControl defaultAccess() {
-        return new AccessControl(false, null, Map.of());
+        return new AccessControl(false);
     }
 
     /**
      * 公开访问
      */
     public static AccessControl publicAccess() {
-        return new AccessControl(true, null, Map.of());
+        return new AccessControl(true);
+    }
+
+    /**
+     * 私有访问
+     */
+    public static AccessControl privateAccess() {
+        return new AccessControl(false);
     }
 }

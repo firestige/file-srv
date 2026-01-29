@@ -30,6 +30,7 @@ import tech.icc.filesrv.common.context.Result;
 import tech.icc.filesrv.common.exception.FileNotFoundException;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
 import tech.icc.filesrv.core.application.entrypoint.assembler.FileInfoAssembler;
+import tech.icc.filesrv.core.application.entrypoint.model.FileMeta;
 import tech.icc.filesrv.core.application.entrypoint.model.FileInfoResponse;
 import tech.icc.filesrv.core.application.entrypoint.model.FileUploadRequest;
 import tech.icc.filesrv.core.application.entrypoint.model.MetaQueryRequest;
@@ -140,8 +141,8 @@ public class FileController {
      * <p>
      * 返回的 URL 中已包含签名和过期时间参数，无需额外处理。
      *
-     * @param fileKey       文件唯一标识（1-128 字符）
-     * @param expirySeconds URL 有效期（秒），默认 3600，范围 60-604800（7天）
+     * @param fileKey   文件唯一标识（1-128 字符）
+     * @param expiresIn URL 有效期（秒），默认 3600，范围 60-604800（7天）
      * @return 预签名 URL（包含签名和过期时间参数）
      */
     @GetMapping("/{fkey}/presign")
@@ -150,12 +151,12 @@ public class FileController {
             @NotBlank(message = "文件标识不能为空")
             @Size(max = MAX_FILE_KEY_LENGTH, message = "文件标识长度不能超过 128 字符")
             String fileKey,
-            @RequestParam(value = "expiry", required = false)
+            @RequestParam(value = "expiresIn", required = false)
             @Min(value = MIN_PRESIGN_EXPIRY_SECONDS, message = "有效期最小为 60 秒")
             @Max(value = MAX_PRESIGN_EXPIRY_SECONDS, message = "有效期最大为 604800 秒（7天）")
-            Integer expirySeconds) {
+            Integer expiresIn) {
 
-        int expiry = expirySeconds != null ? expirySeconds : DEFAULT_PRESIGN_EXPIRY_SECONDS;
+        int expiry = expiresIn != null ? expiresIn : DEFAULT_PRESIGN_EXPIRY_SECONDS;
         log.info("[Presign] Start, fileKey={}, expiry={}s", fileKey, expiry);
 
         String url = service.getPresignedUrl(fileKey, Duration.ofSeconds(expiry));
@@ -202,10 +203,10 @@ public class FileController {
      *
      * @param request  查询条件（所有字段可选）
      * @param pageable 分页参数，默认 page=0, size=20, 最大 size=100
-     * @return 分页的文件信息列表
+     * @return 分页的文件元数据列表
      */
     @PostMapping("/metadata")
-    public Result<Page<FileInfoResponse>> queryMetadata(
+    public Result<Page<FileMeta>> queryMetadata(
             @Valid @RequestBody MetaQueryRequest request,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         
@@ -221,7 +222,7 @@ public class FileController {
                 request, pageable.getPageNumber(), pageable.getPageSize());
         
         Page<FileInfoDto> dtoPage = service.queryMetadata(FileInfoAssembler.toCriteria(request), pageable);
-        Page<FileInfoResponse> responsePage = dtoPage.map(FileInfoAssembler::toResponse);
+        Page<FileMeta> responsePage = dtoPage.map(FileInfoAssembler::toFileMeta);
         
         log.info("[QueryMetadata] Success, totalElements={}, totalPages={}, currentSize={}",
                 responsePage.getTotalElements(), responsePage.getTotalPages(), responsePage.getNumberOfElements());

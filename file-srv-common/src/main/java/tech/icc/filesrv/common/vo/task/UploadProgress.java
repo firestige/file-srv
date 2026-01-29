@@ -1,6 +1,5 @@
 package tech.icc.filesrv.common.vo.task;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
 import java.time.Instant;
@@ -33,7 +32,7 @@ public record UploadProgress(
     public record PartInfo(
             int partNumber,
             long size,
-            @JsonProperty("eTag") String eTag,
+            String eTag,
             Instant uploadedAt
     ) {}
 }

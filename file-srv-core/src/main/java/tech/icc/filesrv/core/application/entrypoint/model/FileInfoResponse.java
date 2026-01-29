@@ -1,15 +1,14 @@
 package tech.icc.filesrv.core.application.entrypoint.model;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import lombok.Builder;
 import tech.icc.filesrv.common.vo.audit.AuditInfo;
 import tech.icc.filesrv.common.vo.audit.OwnerInfo;
 import tech.icc.filesrv.common.vo.file.AccessControl;
+import tech.icc.filesrv.common.vo.file.CustomMetadata;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
+import tech.icc.filesrv.common.vo.file.FileTags;
 import tech.icc.filesrv.common.vo.file.StorageRef;
-
-import java.util.Map;
 
 /**
  * 文件信息 API 响应
@@ -23,19 +22,7 @@ public record FileInfoResponse(
         @JsonUnwrapped StorageRef storageRef,
         @JsonUnwrapped OwnerInfo owner,
         @JsonUnwrapped AuditInfo audit,
-        @JsonUnwrapped AccessControlView access
-) {
-    /**
-     * Access control view - wraps shared VO with presentation annotations
-     */
-    @Builder
-    public record AccessControlView(
-            @JsonProperty("public") Boolean isPublic,
-            String tags,
-            Map<String, String> customMetadata
-    ) {
-        public static AccessControlView from(AccessControl ac) {
-            return new AccessControlView(ac.isPublic(), ac.tags(), ac.customMetadata());
-        }
-    }
-}
+        @JsonUnwrapped AccessControl access,
+        @JsonUnwrapped FileTags fileTags,
+        @JsonUnwrapped CustomMetadata metadata
+) {}

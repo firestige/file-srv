@@ -1,5 +1,6 @@
 package tech.icc.filesrv.core.application.entrypoint.model;
 
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 
@@ -17,6 +18,7 @@ import jakarta.validation.constraints.NotBlank;
  */
 public record PartETag(
         @Min(value = 1, message = "分片序号最小为 1")
+        @Max(value = 10000, message = "分片序号最大为 10000")
         int partNumber,
 
         @NotBlank(message = "ETag 不能为空")

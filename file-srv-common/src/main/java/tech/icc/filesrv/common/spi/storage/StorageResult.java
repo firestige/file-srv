@@ -8,20 +8,20 @@ import java.time.Instant;
  * 包含存储层返回的信息，用于更新元数据。
  *
  * @param path       实际存储路径
- * @param checksum   存储层返回的校验和（如 ETag）
+ * @param eTag       存储层返回的 ETag/校验和
  * @param size       实际存储大小（字节）
  * @param uploadedAt 上传完成时间
  */
 public record StorageResult(
         String path,
-        String checksum,
+        String eTag,
         Long size,
         Instant uploadedAt
 ) {
     /**
      * 创建上传结果
      */
-    public static StorageResult of(String path, String checksum, Long size) {
-        return new StorageResult(path, checksum, size, Instant.now());
+    public static StorageResult of(String path, String eTag, Long size) {
+        return new StorageResult(path, eTag, size, Instant.now());
     }
 }

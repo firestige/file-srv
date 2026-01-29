@@ -293,25 +293,7 @@ paths:
                       type: array
                       description: 文件上传完成后的回调配置列表, 按顺序依次执行, 支持多种插件, 如果没有这些配置, 则表示不需要回调处理
                       items:
-                        type: object
-                        required:
-                          - name
-                        properties:
-                          name:
-                            type: string
-                            description: 插件名称
-                          params:
-                            type: array
-                            description: 插件参数列表
-                            items:
-                              type: object
-                              properties:
-                                key:
-                                  type: string
-                                  description: 参数键
-                                value:
-                                  type: string
-                                  description: 参数值
+                        $ref: '#/components/schemas/CallbackConfig'
       responses:
         '200':
           description: 文件上传任务创建成功
@@ -539,7 +521,7 @@ components:
         creatorName:
           type: string
           description: 文件创建者名称
-        tag:
+        tags:
           type: string
           description: "文件标签列表，使用英文半角逗号 ',' 分隔"
         eTag:
@@ -560,10 +542,11 @@ components:
         public:
           type: boolean
           description: 文件是否公开, 公开的文件可以使用形如http://{host}/static/api/v1/files/{fkey}的链接访问
-        customMetaData:
-          type: string
-          format: json
-          description: 文件的自定义元数据
+        customMetadata:
+          type: object
+          description: 文件的自定义元数据（键值均为字符串）
+          additionalProperties:
+            type: string
     PageFileMeta:
       type: object
       description: Spring Data Page<FileMeta>
@@ -787,6 +770,17 @@ components:
         location:
           type: string
           description: 存储位置
+        public:
+          type: boolean
+          description: 是否公开
+        tags:
+          type: string
+          description: 标签（英文逗号分隔）
+        customMetadata:
+          type: object
+          description: 自定义元数据（键值均为字符串）
+          additionalProperties:
+            type: string
     UploadProgress:
       type: object
       properties:
@@ -860,8 +854,19 @@ components:
         - $ref: '#/components/schemas/StorageRef'
         - $ref: '#/components/schemas/OwnerInfo'
         - $ref: '#/components/schemas/AuditInfo'
-        - $ref: '#/components/schemas/AccessControlView'
-        - $ref: '#/components/schemas/CustomMetadata'
+        - type: object
+          properties:
+            public:
+              type: boolean
+              description: 是否公开
+            tags:
+              type: string
+              description: 标签（英文逗号分隔）
+            customMetadata:
+              type: object
+              description: 自定义元数据（键值均为字符串）
+              additionalProperties:
+                type: string
     FileIdentity:
       type: object
       properties:
@@ -890,9 +895,9 @@ components:
         path:
           type: string
           description: 存储路径
-        checksum:
+        eTag:
           type: string
-          description: 校验和
+          description: ETag/校验和
         fileUrl:
           type: string
           format: uri
@@ -917,23 +922,26 @@ components:
           type: string
           format: date-time
           description: 更新时间
-    AccessControlView:
+    CallbackConfig:
       type: object
+      required:
+        - name
       properties:
-        public:
-          type: boolean
-          description: 是否公开
-        tags:
+        name:
           type: string
-          description: 标签（英文逗号分隔）
-    CustomMetadata:
-      type: object
-      properties:
-        customMetadata:
-          type: object
-          description: 自定义元数据（键值均为字符串）
-          additionalProperties:
-            type: string
+          description: 插件名称
+        params:
+          type: array
+          description: 插件参数列表
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+                description: 参数键
+              value:
+                type: string
+                description: 参数值
   responses:
     BadRequest:
       description: 请求参数错误
