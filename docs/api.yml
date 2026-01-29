@@ -1,0 +1,1033 @@
+openapi: 3.1.0
+info:
+  title: 文件服务 RESTful API
+  version: 1.0.0
+servers:
+  - url: http://{host}/file/api/v1
+    variables:
+      host:
+        default: localhost:8080
+        description: 接入网关的域名与端口
+paths:
+  /files/{fkey}:
+    get:
+      summary: 下载文件
+      parameters:
+        - name: fkey
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: 文件关联的外键
+      responses:
+        '200':
+          description: 下载文件成功（文件元数据通过响应头返回，支持自定义头）
+          headers:
+            Content-Type:
+              description: 实际文件的 MIME 类型（来自文件元数据）
+              schema:
+                type: string
+                format: mime
+            Content-Disposition:
+              description: 建议的文件下载名称
+              schema:
+                type: string
+            X-ICC-META:
+              description: 文件元数据（JSON 字符串）。如需自定义元数据头，可使用 X-ICC-META-* 形式扩展。
+              schema:
+                type: string
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: 删除文件
+      parameters:
+        - name: fkey
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: 文件关联的外键
+      responses:
+        '204':
+          description: 删除文件成功（无响应体）
+        '403':
+          description: 禁止删除文件
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                forbiddenDelete:
+                  value:
+                    code: 403
+                    msg: 该文件禁止删除
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /files/{fkey}/metadata:
+    get:
+      summary: 获取文件元数据
+      parameters:
+        - name: fkey
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: 文件关联的外键
+      responses:
+        '200':
+          description: 获取文件元数据成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileMeta'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /files/{fkey}/presign:
+    get:
+      summary: 获取文件预签名下载 URL
+      parameters:
+        - name: fkey
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: 文件关联的外键
+        - name: expiresIn
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 60
+            maximum: 86400
+            default: 3600
+          description: 预签名 URL 的有效期，单位为秒，默认值为 3600 秒(1 小时)
+      responses:
+        '200':
+          description: 获取文件预签名下载 URL 成功
+          content:
+            text/plain:
+              schema:
+                type: string
+                format: uri
+                description: 预签名下载 URL
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+  /files/metadata:
+    post:
+      summary: 查询文件元数据
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: 页码，从 0 开始
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 20
+          description: 每页大小
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: 排序规则，格式为 属性,asc|desc，可重复传入多个
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: 文件名
+                name.prefix:
+                  type: string
+                  description: 文件名前缀匹配
+                creator:
+                  type: string
+                  format: uuid, string
+                  description: 文件创建者 ID或者 name
+                creator.prefix:
+                  type: string
+                  description: 文件创建者名称前缀匹配
+                tag.either:
+                  type: string
+                  description: 包含任意标签的文件，多个标签使用英文半角逗号 ',' 分隔
+                tag.both:
+                  type: string
+                  description: 包含所有标签的文件，多个标签使用英文半角逗号 ',' 分隔
+                created.at:
+                  type: string
+                  format: date
+                  description: 文件创建时间等于指定时间的文件，格式为 YYYY-MM-DD
+                created.before:
+                  type: string
+                  format: date
+                  description: 文件创建时间早于指定时间的文件，格式为 YYYY-MM-DD
+                created.after:
+                  type: string
+                  format: date
+                  description: 文件创建时间晚于指定时间的文件，格式为 YYYY-MM-DD
+                size:
+                  type: integer
+                  format: int64
+                  description: 文件大小等于指定值的文件（字节）
+                size.ge:
+                  type: integer
+                  format: int64
+                  description: 文件大小大于等于指定值的文件（字节）
+                size.gt:
+                  type: integer
+                  format: int64
+                  description: 文件大小大于指定值的文件（字节）
+                size.le:
+                  type: integer
+                  format: int64
+                  description: 文件大小小于等于指定值的文件（字节）
+                size.lt:
+                  type: integer
+                  format: int64
+                  description: 文件大小小于指定值的文件（字节）
+      responses:
+        '200':
+          description: 获取文件元数据成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseFileMetaPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /files/upload:
+    post:
+      summary: 上传文件
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/FileMeta'
+                - type: object
+                  required:
+                    - file
+                    - createdBy
+                    - fileName
+                    - fileType
+                  properties:
+                    file:
+                      type: string
+                      format: binary
+                      description: 要上传的文件
+                    fileSize:
+                      type: integer
+                      format: int64
+                      description: 文件大小（字节）。默认值 -1 表示上传完成后使用实际接收的字节流大小（可能因传输不稳定而不准确）。
+                      default: -1
+      responses:
+        '200':
+          description: 文件上传成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseFileUpload'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+  /files/upload_task:
+    post:
+      summary: 创建异步(分片)文件上传任务
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/FileMeta'
+                - type: object
+                  required:
+                    - createdBy
+                    - fileName
+                    - fileType
+                    - fileSize
+                  properties:
+                    fileSize:
+                      type: integer
+                      format: int64
+                      description: 文件大小（字节）
+                    callbacks:
+                      type: array
+                      description: 文件上传完成后的回调配置列表, 按顺序依次执行, 支持多种插件, 如果没有这些配置, 则表示不需要回调处理
+                      items:
+                        type: object
+                        required:
+                          - name
+                        properties:
+                          name:
+                            type: string
+                            description: 插件名称
+                          params:
+                            type: array
+                            description: 插件参数列表
+                            items:
+                              type: object
+                              properties:
+                                key:
+                                  type: string
+                                  description: 参数键
+                                value:
+                                  type: string
+                                  description: 参数值
+      responses:
+        '200':
+          description: 文件上传任务创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseUploadTask'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /files/upload_task/{taskID}:
+    put:
+      summary: 上传文件(分片)
+      parameters:
+        - name: taskID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: 上传任务的唯一标识 ID
+        - name: partNumber
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 10000
+          description: 分片编号，从 1 开始递增
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+              description: 分片的二进制数据
+      responses:
+        '200':
+          description: 文件上传任务更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseUploadPart'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+    get:
+      summary: 查询上传任务状态
+      parameters:
+        - name: taskID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: 上传任务的唯一标识 ID
+      responses:
+        '200':
+          description: 查询上传任务状态成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseUploadTaskStatus'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /files/upload_task/{taskID}/complete:
+    post:
+      summary: 完成文件上传任务
+      parameters:
+        - name: taskID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: 上传任务的唯一标识 ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - completedParts
+              properties:
+                completedParts:
+                  type: array
+                  description: 已上传分片列表
+                  items:
+                    type: object
+                    required:
+                      - partNumber
+                      - eTag
+                    properties:
+                      partNumber:
+                        type: integer
+                        description: 分片编号
+                        minimum: 1
+                        maximum: 10000
+                      eTag:
+                        type: string
+                        description: 分片的 eTag 值
+      responses:
+        '200':
+          description: 文件上传任务完成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /files/upload_task/{taskID}/abort:
+    post:
+      summary: 中止文件上传任务
+      parameters:
+        - name: taskID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: 上传任务的唯一标识 ID
+      responses:
+        '204':
+          description: 中止文件上传任务成功（无响应体）
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 业务或 HTTP 状态码
+          example: 200
+        msg:
+          type: string
+          description: 响应消息
+          example: 成功
+        data:
+          description: 业务响应数据
+      required:
+        - code
+        - msg
+    ApiResponseFileUpload:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/FileUploadResult'
+          required:
+            - data
+    ApiResponseUploadTask:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/UploadTaskResult'
+          required:
+            - data
+    ApiResponseUploadPart:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/UploadPartResult'
+          required:
+            - data
+    ApiResponseFileMetaPage:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/PageFileMeta'
+          required:
+            - data
+    ApiResponseUploadTaskStatus:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/TaskResponse'
+          required:
+            - data
+    ApiErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 业务或 HTTP 错误码
+          example: 400
+        msg:
+          type: string
+          description: 错误信息
+          example: 请求参数错误
+        data:
+          type: object
+          description: 业务响应数据（错误响应通常为空）
+      required:
+        - code
+        - msg
+    FileMeta:
+      type: object
+      properties:
+        createdBy:
+          type: string
+          format: uuid
+          description: 文件创建者 ID
+        creatorName:
+          type: string
+          description: 文件创建者名称
+        tag:
+          type: string
+          description: "文件标签列表，使用英文半角逗号 ',' 分隔"
+        eTag:
+          type: string
+          description: 文件的 eTag
+        fileName:
+          type: string
+          description: 文件名称
+        fileType:
+          type: string
+          format: mime
+          description: 文件类型(MIME 类型)
+          example: image/png
+        fkey:
+          type: string
+          format: uuid
+          description: 文件关联的外键
+        public:
+          type: boolean
+          description: 文件是否公开, 公开的文件可以使用形如http://{host}/static/api/v1/files/{fkey}的链接访问
+        customMetaData:
+          type: string
+          format: json
+          description: 文件的自定义元数据
+    PageFileMeta:
+      type: object
+      description: Spring Data Page<FileMeta>
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileMeta'
+        totalElements:
+          type: integer
+          format: int64
+          description: 总元素数
+        totalPages:
+          type: integer
+          description: 总页数
+        size:
+          type: integer
+          description: 每页大小
+        number:
+          type: integer
+          description: 当前页码（从 0 开始）
+        numberOfElements:
+          type: integer
+          description: 当前页元素数量
+        first:
+          type: boolean
+          description: 是否为首页
+        last:
+          type: boolean
+          description: 是否为末页
+        empty:
+          type: boolean
+          description: 是否为空页
+        sort:
+          type: object
+          description: 排序信息
+    FileUploadResult:
+      type: object
+      properties:
+        fkey:
+          type: string
+          format: uuid
+          description: 文件关联的外键
+        createdAt:
+          type: string
+          format: iso8601
+          description: 文件创建时间
+          example: "2024-01-01T12:00:00Z"
+        fileUrl:
+          type: string
+          format: uri
+          description: 已上传文件的访问 URL（基于接入网关的 host）
+          example: "http://{host}/file/api/v1/files/123e4567-e89b-12d3-a456-426614174000"
+      required:
+        - fkey
+        - createdAt
+        - fileUrl
+    UploadTaskResult:
+      type: object
+      properties:
+        taskId:
+          type: string
+          format: uuid
+          description: 上传任务的唯一标识 ID, 用于后续分片上传，查询任务状态等操作
+        createdAt:
+          type: string
+          format: date-time
+          description: 上传任务创建时间
+          example: "2024-01-01T12:00:00Z"
+        expiredAt:
+          type: string
+          format: date-time
+          description: 上传任务过期时间, 过期后任务及其分片将被自动删除
+          example: "2024-01-02T12:00:00Z"
+      required:
+        - taskId
+        - createdAt
+        - expiredAt
+    TaskResponse:
+      description: 任务响应（与 TaskResponse 实现结构一致）
+      oneOf:
+        - $ref: '#/components/schemas/TaskResponsePending'
+        - $ref: '#/components/schemas/TaskResponseInProgress'
+        - $ref: '#/components/schemas/TaskResponseCompleted'
+        - $ref: '#/components/schemas/TaskResponseFailed'
+        - $ref: '#/components/schemas/TaskResponseAborted'
+      discriminator:
+        propertyName: status
+        mapping:
+          PENDING: '#/components/schemas/TaskResponsePending'
+          IN_PROGRESS: '#/components/schemas/TaskResponseInProgress'
+          COMPLETED: '#/components/schemas/TaskResponseCompleted'
+          FAILED: '#/components/schemas/TaskResponseFailed'
+          ABORTED: '#/components/schemas/TaskResponseAborted'
+    TaskResponseBase:
+      type: object
+      properties:
+        status:
+          type: string
+          description: 任务状态
+          enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED, ABORTED]
+      required:
+        - status
+    TaskResponsePending:
+      allOf:
+        - $ref: '#/components/schemas/TaskResponseBase'
+        - $ref: '#/components/schemas/TaskSummary'
+        - $ref: '#/components/schemas/FileRequest'
+        - type: object
+          properties:
+            status:
+              type: string
+              enum: [PENDING]
+    TaskResponseInProgress:
+      allOf:
+        - $ref: '#/components/schemas/TaskResponseBase'
+        - $ref: '#/components/schemas/TaskSummary'
+        - $ref: '#/components/schemas/FileRequest'
+        - $ref: '#/components/schemas/UploadProgress'
+        - type: object
+          properties:
+            status:
+              type: string
+              enum: [IN_PROGRESS]
+    TaskResponseCompleted:
+      allOf:
+        - $ref: '#/components/schemas/TaskResponseBase'
+        - $ref: '#/components/schemas/TaskSummary'
+        - type: object
+          properties:
+            status:
+              type: string
+              enum: [COMPLETED]
+            file:
+              $ref: '#/components/schemas/FileInfoResponse'
+            derivedFiles:
+              type: array
+              description: 由回调衍生创建的文件列表
+              items:
+                $ref: '#/components/schemas/DerivedFile'
+          required:
+            - file
+    TaskResponseFailed:
+      allOf:
+        - $ref: '#/components/schemas/TaskResponseBase'
+        - $ref: '#/components/schemas/TaskSummary'
+        - $ref: '#/components/schemas/FileRequest'
+        - $ref: '#/components/schemas/UploadProgress'
+        - $ref: '#/components/schemas/FailureDetail'
+        - type: object
+          properties:
+            status:
+              type: string
+              enum: [FAILED]
+    TaskResponseAborted:
+      allOf:
+        - $ref: '#/components/schemas/TaskResponseBase'
+        - $ref: '#/components/schemas/TaskSummary'
+        - $ref: '#/components/schemas/FileRequest'
+        - type: object
+          properties:
+            status:
+              type: string
+              enum: [ABORTED]
+            abortedAt:
+              type: string
+              format: date-time
+              description: 中止时间
+            reason:
+              type: string
+              description: 中止原因
+          required:
+            - abortedAt
+    UploadPartResult:
+      type: object
+      properties:
+        partNumber:
+          type: integer
+          description: 已上传的分片编号
+          example: 1
+        eTag:
+          type: string
+          description: 分片的 eTag 值
+          example: d41d8cd98f00b204e9800998ecf8427e6
+      required:
+        - partNumber
+        - eTag
+    TaskSummary:
+      type: object
+      properties:
+        taskId:
+          type: string
+          description: 任务标识
+        uploadId:
+          type: string
+          description: 存储侧上传 ID
+        createdAt:
+          type: string
+          format: date-time
+          description: 任务创建时间
+        expiresAt:
+          type: string
+          format: date-time
+          description: 任务过期时间
+    FileRequest:
+      type: object
+      properties:
+        filename:
+          type: string
+          description: 文件名
+        contentType:
+          type: string
+          description: MIME 类型
+        size:
+          type: integer
+          format: int64
+          description: 文件大小（字节）
+        eTag:
+          type: string
+          description: 校验和
+        location:
+          type: string
+          description: 存储位置
+    UploadProgress:
+      type: object
+      properties:
+        totalParts:
+          type: integer
+          description: 预期分片总数
+        uploadedParts:
+          type: integer
+          description: 已上传分片数
+        uploadedBytes:
+          type: integer
+          format: int64
+          description: 已上传字节数
+        parts:
+          type: array
+          description: 分片详情列表
+          items:
+            $ref: '#/components/schemas/UploadProgressPartInfo'
+    UploadProgressPartInfo:
+      type: object
+      properties:
+        partNumber:
+          type: integer
+          description: 分片编号（从 1 开始）
+        size:
+          type: integer
+          format: int64
+          description: 分片大小（字节）
+        eTag:
+          type: string
+          description: 分片校验和（ETag）
+        uploadedAt:
+          type: string
+          format: date-time
+          description: 分片上传时间
+    FailureDetail:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: 错误码
+        errorMessage:
+          type: string
+          description: 错误信息
+        failedAt:
+          type: string
+          format: date-time
+          description: 失败时间
+    DerivedFile:
+      type: object
+      properties:
+        type:
+          type: string
+          description: 衍生文件类型
+        fileId:
+          type: string
+          description: 衍生文件标识
+        path:
+          type: string
+          description: 存储路径
+        contentType:
+          type: string
+          description: MIME 类型
+        size:
+          type: integer
+          format: int64
+          description: 文件大小（字节）
+    FileInfoResponse:
+      allOf:
+        - $ref: '#/components/schemas/FileIdentity'
+        - $ref: '#/components/schemas/StorageRef'
+        - $ref: '#/components/schemas/OwnerInfo'
+        - $ref: '#/components/schemas/AuditInfo'
+        - $ref: '#/components/schemas/AccessControlView'
+        - $ref: '#/components/schemas/CustomMetadata'
+    FileIdentity:
+      type: object
+      properties:
+        fKey:
+          type: string
+          description: 文件唯一标识
+        fileName:
+          type: string
+          description: 文件名
+        fileType:
+          type: string
+          description: MIME 类型
+        fileSize:
+          type: integer
+          format: int64
+          description: 文件大小（字节）
+    StorageRef:
+      type: object
+      properties:
+        storageType:
+          type: string
+          description: 存储类型
+        location:
+          type: string
+          description: 存储位置
+        path:
+          type: string
+          description: 存储路径
+        checksum:
+          type: string
+          description: 校验和
+        fileUrl:
+          type: string
+          format: uri
+          description: 文件访问 URL
+    OwnerInfo:
+      type: object
+      properties:
+        createdBy:
+          type: string
+          description: 创建者 ID
+        creatorName:
+          type: string
+          description: 创建者名称
+    AuditInfo:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新时间
+    AccessControlView:
+      type: object
+      properties:
+        public:
+          type: boolean
+          description: 是否公开
+        tags:
+          type: string
+          description: 标签（英文逗号分隔）
+    CustomMetadata:
+      type: object
+      properties:
+        customMetadata:
+          type: object
+          description: 自定义元数据（键值均为字符串）
+          additionalProperties:
+            type: string
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+          examples:
+            invalidUpload:
+              value:
+                code: 400
+                msg: 文件上传信息无效
+    NotFound:
+      description: 文件未找到
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+          examples:
+            fileNotFound:
+              value:
+                code: 404
+                msg: 文件未找到
+            taskNotFound:
+              value:
+                code: 404
+                msg: 上传任务未找到
+    NotImplemented:
+      description: 功能未实现（当前存储类型不支持）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+          examples:
+            notImplemented:
+              value:
+                code: 501
+                msg: 当前存储类型不支持该功能
+    PayloadTooLarge:
+      description: 请求体过大
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+          examples:
+            fileTooLarge:
+              value:
+                code: 413
+                msg: 文件大小超过最大限制
+            metaDataTooLarge:
+              value:
+                code: 413
+                msg: 自定义元数据大小超过最大限制
+    TooManyRequests:
+      description: 请求过于频繁
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+          examples:
+            rateLimited:
+              value:
+                code: 429
+                msg: 触发限流，请稍后再试
+    InternalServerError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+          examples:
+            unexpected:
+              value:
+                code: 500
+                msg: 处理文件上传时发生未知错误
+    ServiceUnavailable:
+      description: 服务不可用
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+          examples:
+            unavailable:
+              value:
+                code: 503
+                msg: 服务暂不可用，请稍后再试
+    GatewayTimeout:
+      description: 网关超时
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+          examples:
+            timeout:
+              value:
+                code: 504
+                msg: 服务器响应超时，请稍后再试
