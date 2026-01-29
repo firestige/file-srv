@@ -161,10 +161,10 @@ public class TaskController {
      *
      * @param taskId 任务标识
      * @param reason 中止原因（可选）
-     * @return 200 OK
+     * @return 204 No Content
      */
     @PostMapping("/{taskId}/abort")
-    public Result<Void> abortUpload(
+    public ResponseEntity<Void> abortUpload(
             @PathVariable("taskId")
             @NotBlank(message = "任务标识不能为空")
             @Size(max = MAX_TASK_ID_LENGTH, message = "任务标识长度不能超过 64 字符")
@@ -178,7 +178,7 @@ public class TaskController {
 
         log.info("[AbortUpload] Success, taskId={}", taskId);
 
-        return Result.success();
+        return ResponseEntity.noContent().build();
     }
 
     /**
