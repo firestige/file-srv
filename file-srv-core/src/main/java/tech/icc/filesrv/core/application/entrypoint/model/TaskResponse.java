@@ -42,9 +42,7 @@ public sealed interface TaskResponse
     @Builder
     record Pending(
             @JsonUnwrapped TaskSummary summary,
-            @JsonUnwrapped FileRequest request,
-            String uploadUrl,
-            List<String> partUploadUrls
+            @JsonUnwrapped FileRequest request
     ) implements TaskResponse {}
 
     /**
