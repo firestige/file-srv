@@ -2,7 +2,7 @@ package tech.icc.filesrv.core.testdata.stubs;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import tech.icc.filesrv.common.enums.TaskStatus;
+import tech.icc.filesrv.core.domain.tasks.TaskStatus;
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
 import tech.icc.filesrv.core.testdata.fixtures.TaskFixtures;
 

@@ -1,167 +1,214 @@
 package tech.icc.filesrv.core.testdata.fixtures;
 
 import tech.icc.filesrv.core.domain.files.FileReference;
-import tech.icc.filesrv.core.testdata.TestDataBuilders;
 
 /**
  * 文件场景预设
  * <p>
- * 提供常见文件类型的快捷创建方法，简化测试代码。
+ * 提供常见文件类型和场景的快捷创建方法。
  * <p>
  * 使用示例：
  * <pre>{@code
  * // 创建图片文件
  * FileReference image = FileFixtures.imageFile();
- *
- * // 创建文档文件
- * FileReference doc = FileFixtures.documentFile();
- *
+ * 
  * // 创建大文件
  * FileReference large = FileFixtures.largeFile();
+ * 
+ * // 创建公开文件
+ * FileReference pub = FileFixtures.publicFile();
  * }</pre>
  */
 public class FileFixtures {
 
     /**
-     * 创建图片文件（JPEG）
+     * 图片文件（通用）
+     * <p>
+     * 类型: image/jpeg<br>
+     * 大小: 2MB<br>
+     * 文件名: photo.jpg<br>
+     * 用途: 测试图片上传、缩略图生成
+     *
+     * @return JPEG 图片文件引用
      */
     public static FileReference imageFile() {
-        return TestDataBuilders.aFileReference()
-                .withFilename("photo.jpg")
-                .withContentType("image/jpeg")
-                .withSize(2 * 1024 * 1024L) // 2MB
-                .build();
+        // TODO: 实现
+        throw new UnsupportedOperationException("待实现");
     }
 
     /**
-     * 创建 PNG 图片文件
+     * PNG 图片文件
+     * <p>
+     * 类型: image/png<br>
+     * 大小: 1.5MB<br>
+     * 文件名: screenshot.png<br>
+     * 用途: 测试 PNG 格式处理
+     *
+     * @return PNG 图片文件引用
      */
     public static FileReference pngImage() {
-        return TestDataBuilders.aFileReference()
-                .withFilename("screenshot.png")
-                .withContentType("image/png")
-                .withSize(1 * 1024 * 1024L) // 1MB
-                .build();
+        // TODO: 实现
+        throw new UnsupportedOperationException("待实现");
     }
 
     /**
-     * 创建 PDF 文档文件
+     * 文档文件（通用）
+     * <p>
+     * 类型: application/pdf<br>
+     * 大小: 5MB<br>
+     * 文件名: document.pdf<br>
+     * 用途: 测试文档上传、预览
+     *
+     * @return PDF 文档文件引用
      */
     public static FileReference documentFile() {
-        return TestDataBuilders.aFileReference()
-                .withFilename("report.pdf")
-                .withContentType("application/pdf")
-                .withSize(500 * 1024L) // 500KB
-                .build();
+        // TODO: 实现
+        throw new UnsupportedOperationException("待实现");
     }
 
     /**
-     * 创建 Word 文档文件
+     * Word 文档
+     * <p>
+     * 类型: application/vnd.openxmlformats-officedocument.wordprocessingml.document<br>
+     * 大小: 3MB<br>
+     * 文件名: report.docx<br>
+     * 用途: 测试 Office 文件处理
+     *
+     * @return DOCX 文档文件引用
      */
     public static FileReference wordDocument() {
-        return TestDataBuilders.aFileReference()
-                .withFilename("document.docx")
-                .withContentType("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-                .withSize(150 * 1024L) // 150KB
-                .build();
+        // TODO: 实现
+        throw new UnsupportedOperationException("待实现");
     }
 
     /**
-     * 创建视频文件（MP4）
+     * 视频文件
+     * <p>
+     * 类型: video/mp4<br>
+     * 大小: 50MB<br>
+     * 文件名: video.mp4<br>
+     * 用途: 测试大文件上传、视频处理
+     *
+     * @return MP4 视频文件引用
      */
     public static FileReference videoFile() {
-        return TestDataBuilders.aFileReference()
-                .withFilename("video.mp4")
-                .withContentType("video/mp4")
-                .withSize(50 * 1024 * 1024L) // 50MB
-                .build();
+        // TODO: 实现
+        throw new UnsupportedOperationException("待实现");
     }
 
     /**
-     * 创建音频文件（MP3）
+     * 音频文件
+     * <p>
+     * 类型: audio/mpeg<br>
+     * 大小: 8MB<br>
+     * 文件名: audio.mp3<br>
+     * 用途: 测试音频文件处理
+     *
+     * @return MP3 音频文件引用
      */
     public static FileReference audioFile() {
-        return TestDataBuilders.aFileReference()
-                .withFilename("music.mp3")
-                .withContentType("audio/mpeg")
-                .withSize(5 * 1024 * 1024L) // 5MB
-                .build();
+        // TODO: 实现
+        throw new UnsupportedOperationException("待实现");
     }
 
     /**
-     * 创建压缩文件（ZIP）
+     * 压缩文件
+     * <p>
+     * 类型: application/zip<br>
+     * 大小: 20MB<br>
+     * 文件名: archive.zip<br>
+     * 用途: 测试压缩文件上传、解压
+     *
+     * @return ZIP 压缩文件引用
      */
     public static FileReference zipFile() {
-        return TestDataBuilders.aFileReference()
-                .withFilename("archive.zip")
-                .withContentType("application/zip")
-                .withSize(10 * 1024 * 1024L) // 10MB
-                .build();
+        // TODO: 实现
+        throw new UnsupportedOperationException("待实现");
     }
 
     /**
-     * 创建文本文件
+     * 文本文件
+     * <p>
+     * 类型: text/plain<br>
+     * 大小: 100KB<br>
+     * 文件名: readme.txt<br>
+     * 用途: 测试文本文件处理
+     *
+     * @return TXT 文本文件引用
      */
     public static FileReference textFile() {
-        return TestDataBuilders.aFileReference()
-                .withFilename("readme.txt")
-                .withContentType("text/plain")
-                .withSize(10 * 1024L) // 10KB
-                .build();
+        // TODO: 实现
+        throw new UnsupportedOperationException("待实现");
     }
 
     /**
-     * 创建 JSON 文件
+     * JSON 文件
+     * <p>
+     * 类型: application/json<br>
+     * 大小: 50KB<br>
+     * 文件名: config.json<br>
+     * 用途: 测试 JSON 文件解析
+     *
+     * @return JSON 文件引用
      */
     public static FileReference jsonFile() {
-        return TestDataBuilders.aFileReference()
-                .withFilename("config.json")
-                .withContentType("application/json")
-                .withSize(5 * 1024L) // 5KB
-                .build();
+        // TODO: 实现
+        throw new UnsupportedOperationException("待实现");
     }
 
     /**
-     * 创建大文件（100MB）
+     * 大文件（超过10MB）
+     * <p>
+     * 类型: application/octet-stream<br>
+     * 大小: 100MB<br>
+     * 文件名: large-file.bin<br>
+     * 用途: 测试分片上传、大文件处理
+     *
+     * @return 100MB 大文件引用
      */
     public static FileReference largeFile() {
-        return TestDataBuilders.aFileReference()
-                .withRandomFilename()
-                .withRandomContentType()
-                .withSize(100 * 1024 * 1024L) // 100MB
-                .build();
+        // TODO: 实现
+        throw new UnsupportedOperationException("待实现");
     }
 
     /**
-     * 创建小文件（1KB）
+     * 小文件（可同步上传）
+     * <p>
+     * 类型: text/plain<br>
+     * 大小: 1KB<br>
+     * 文件名: small.txt<br>
+     * 用途: 测试同步上传、秒传
+     *
+     * @return 1KB 小文件引用
      */
     public static FileReference smallFile() {
-        return TestDataBuilders.aFileReference()
-                .withFilename("tiny.txt")
-                .withContentType("text/plain")
-                .withSize(1024L) // 1KB
-                .build();
+        // TODO: 实现
+        throw new UnsupportedOperationException("待实现");
     }
 
     /**
-     * 创建公开访问的文件
+     * 公开访问的文件
+     * <p>
+     * AccessControl: public<br>
+     * 用途: 测试公开访问、外链生成
+     *
+     * @return 公开访问的文件引用
      */
     public static FileReference publicFile() {
-        return TestDataBuilders.aFileReference()
-                .withFilename("public-image.jpg")
-                .withContentType("image/jpeg")
-                .withPublicAccess()
-                .build();
+        // TODO: 实现
+        throw new UnsupportedOperationException("待实现");
     }
 
     /**
-     * 创建带随机属性的文件
+     * 随机文件（使用 DataFaker）
+     * <p>
+     * 所有字段随机生成<br>
+     * 用途: 压力测试、批量数据生成
+     *
+     * @return 随机文件引用
      */
     public static FileReference randomFile() {
-        return TestDataBuilders.aFileReference()
-                .withRandomFilename()
-                .withRandomContentType()
-                .withRandomSize()
-                .build();
+        // TODO: 实现
+        throw new UnsupportedOperationException("待实现");
     }
 }
