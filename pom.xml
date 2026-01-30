@@ -29,6 +29,7 @@
         <jacoco.plugin.version>0.8.10</jacoco.plugin.version>
         <jmh.version>1.36</jmh.version>
         <junit.jupiter.version>5.10.0</junit.jupiter.version>
+        <testcontainers.version>1.19.3</testcontainers.version>
     </properties>
 
     <dependencyManagement>
@@ -39,6 +40,13 @@
                 <version>3.2.12</version>
                 <scope>import</scope>
                 <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -123,6 +131,19 @@
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>${jacoco.plugin.version}</version>
+                    <configuration>
+                        <excludes>
+                            <!-- Exclude constants and configuration classes -->
+                            <exclude>**/*Constants.class</exclude>
+                            <exclude>**/*Configuration.class</exclude>
+                            <exclude>**/*Config.class</exclude>
+                            <!-- Exclude simple DTOs/VOs without business logic -->
+                            <exclude>**/entrypoint/dto/**</exclude>
+                            <exclude>**/entrypoint/vo/**</exclude>
+                            <!-- Exclude Spring Boot auto-configuration -->
+                            <exclude>**/autoconfiguration/**</exclude>
+                        </excludes>
+                    </configuration>
                     <executions>
                         <execution>
                             <id>prepare-agent</id>
