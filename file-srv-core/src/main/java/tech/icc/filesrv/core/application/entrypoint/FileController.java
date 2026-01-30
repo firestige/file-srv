@@ -110,6 +110,34 @@ public class FileController {
     }
 
     /**
+     * 获取文件元数据
+     * <p>
+     * 根据文件唯一标识获取文件的元数据信息（不包含存储引用）。
+     *
+     * @param fileKey 文件唯一标识（1-128 字符）
+     * @return 文件元数据（FileMeta）
+     */
+    @GetMapping("/{fkey}/metadata")
+    public Result<FileMeta> getFileMetadata(
+            @PathVariable("fkey")
+            @NotBlank(message = "文件标识不能为空")
+            @Size(max = MAX_FILE_KEY_LENGTH, message = "文件标识长度不能超过 128 字符")
+            String fileKey) {
+        log.info("[GetMetadata] Start, fileKey={}", fileKey);
+        
+        FileInfoDto dto = service.getFileInfo(fileKey)
+                .orElseThrow(() -> {
+                    log.warn("[GetMetadata] File not found, fileKey={}", fileKey);
+                    return FileNotFoundException.withoutStack("文件不存在: " + fileKey);
+                });
+        
+        FileMeta response = FileInfoAssembler.toFileMeta(dto);
+        
+        log.info("[GetMetadata] Success, fileKey={}", fileKey);
+        return Result.success(response);
+    }
+
+    /**
      * 删除文件
      * <p>
      * 根据文件唯一标识删除文件及其元数据。

@@ -61,12 +61,20 @@ public final class FileInfoAssembler {
             return MetaQueryCriteria.builder().build();
         }
         return MetaQueryCriteria.builder()
-                .fileName(request.getFileName())
+                .name(request.getName())
+                .namePrefix(request.getNamePrefix())
                 .creator(request.getCreator())
-                .contentType(request.getContentType())
-                .createdFrom(request.getCreatedFrom())
-                .updatedTo(request.getUpdatedTo())
-                .tags(request.getTags())
+                .creatorPrefix(request.getCreatorPrefix())
+                .tagEither(request.getTagEither())
+                .tagBoth(request.getTagBoth())
+                .createdAt(request.getCreatedAt())
+                .createdBefore(request.getCreatedBefore())
+                .createdAfter(request.getCreatedAfter())
+                .size(request.getSize())
+                .sizeGe(request.getSizeGe())
+                .sizeGt(request.getSizeGt())
+                .sizeLe(request.getSizeLe())
+                .sizeLt(request.getSizeLt())
                 .build();
     }
 

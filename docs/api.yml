@@ -9,6 +9,54 @@ servers:
         default: localhost:8080
         description: 接入网关的域名与端口
 paths:
+  /static/{fkey}:
+    get:
+      summary: 访问公开文件（静态资源）
+      description: |
+        匿名访问公开文件的端点，无需认证。仅允许访问元数据中 `public=true` 的文件。
+        典型使用场景：
+        - 公开图片的直接引用（img src）
+        - 公开文档的下载链接
+        - CDN 回源
+      parameters:
+        - name: fkey
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: 文件关联的外键
+      responses:
+        '200':
+          description: 下载公开文件成功
+          headers:
+            Content-Type:
+              description: 实际文件的 MIME 类型
+              schema:
+                type: string
+                format: mime
+            Content-Disposition:
+              description: 建议的文件下载名称
+              schema:
+                type: string
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '403':
+          description: 文件未公开，禁止访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                notPublic:
+                  value:
+                    code: 403
+                    msg: 该文件未公开，无法访问
+        '404':
+          $ref: '#/components/responses/NotFound'
   /files/{fkey}:
     get:
       summary: 下载文件
@@ -307,11 +355,11 @@ paths:
           $ref: '#/components/responses/PayloadTooLarge'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-  /files/upload_task/{taskID}:
+  /files/upload_task/{taskId}:
     put:
       summary: 上传文件(分片)
       parameters:
-        - name: taskID
+        - name: taskId
           in: path
           required: true
           schema:
@@ -349,7 +397,7 @@ paths:
     get:
       summary: 查询上传任务状态
       parameters:
-        - name: taskID
+        - name: taskId
           in: path
           required: true
           schema:
@@ -365,11 +413,11 @@ paths:
                 $ref: '#/components/schemas/ApiResponseUploadTaskStatus'
         '404':
           $ref: '#/components/responses/NotFound'
-  /files/upload_task/{taskID}/complete:
+  /files/upload_task/{taskId}/complete:
     post:
       summary: 完成文件上传任务
       parameters:
-        - name: taskID
+        - name: taskId
           in: path
           required: true
           schema:
@@ -403,8 +451,8 @@ paths:
                         type: string
                         description: 分片的 eTag 值
       responses:
-        '200':
-          description: 文件上传任务完成成功
+        '202':
+          description: 文件上传任务已接受，callback 将异步处理
           content:
             application/json:
               schema:
@@ -413,17 +461,23 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  /files/upload_task/{taskID}/abort:
+  /files/upload_task/{taskId}/abort:
     post:
       summary: 中止文件上传任务
       parameters:
-        - name: taskID
+        - name: taskId
           in: path
           required: true
           schema:
             type: string
             format: uuid
           description: 上传任务的唯一标识 ID
+        - name: reason
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 中止原因（可选）
       responses:
         '204':
           description: 中止文件上传任务成功（无响应体）
