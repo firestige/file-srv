@@ -48,7 +48,7 @@ public class TaskContext {
         this.data = new HashMap<>();
     }
 
-    public TaskContext(Map<String, Object> initialData) {
+    public TaskContext(Map<String, ?> initialData) {
         this.data = new HashMap<>(initialData != null ? initialData : Map.of());
     }
 

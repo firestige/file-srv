@@ -395,10 +395,10 @@ public class FileService {
     private FileReferenceSpec toSpec(MetaQueryCriteria criteria) {
         return new FileReferenceSpec(
                 criteria.creator(),
-                criteria.fileName(),
+                criteria.name(),
                 criteria.contentType(),
-                criteria.createdFrom(),
-                criteria.updatedTo()
+                criteria.createdAfter().atStartOfDay(),
+                criteria.createdBefore().atStartOfDay()
         );
     }
 }

@@ -16,6 +16,7 @@ import java.time.LocalDate;
  * @param creatorPrefix 创建者名称前缀匹配
  * @param tagEither     包含任一标签（OR 查询，逗号分隔）
  * @param tagBoth       包含所有标签（AND 查询，逗号分隔）
+ * @param contentType   文件类型精确匹配
  * @param createdAt     创建时间等于指定日期
  * @param createdBefore 创建时间早于指定日期
  * @param createdAfter  创建时间晚于指定日期
@@ -33,6 +34,7 @@ public record MetaQueryCriteria(
         String creatorPrefix,
         String tagEither,
         String tagBoth,
+        String contentType,
         LocalDate createdAt,
         LocalDate createdBefore,
         LocalDate createdAfter,
