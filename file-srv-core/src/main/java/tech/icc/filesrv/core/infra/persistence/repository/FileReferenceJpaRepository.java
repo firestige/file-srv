@@ -16,6 +16,5 @@ public interface FileReferenceJpaRepository extends
         JpaSpecificationExecutor<FileReferenceEntity> {
 
     List<FileReferenceEntity> findByOwnerId(String ownerId);
-
-    boolean existsByFKey(String fKey);
 }
+
