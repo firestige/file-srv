@@ -141,5 +141,37 @@ public class FileServiceAutoConfiguration {
     public CallbackTaskPublisher noOpCallbackTaskPublisher() {
         return new NoOpCallbackTaskPublisher();
     }
-}
 
+    /**
+     * 文件控制器配置
+     * <p>
+     * 从 FileServiceProperties 中提取文件控制器相关配置，注入到 FileController。
+     * 提供开箱即用的默认值，用户可通过 application.yml 自定义。
+     * <p>
+     * 配置项：
+     * <ul>
+     *   <li>file-service.file-controller.max-file-key-length: 文件标识最大长度，默认 128</li>
+     *   <li>file-service.file-controller.presign.default-expiry-seconds: 预签名URL默认有效期，默认 3600</li>
+     *   <li>file-service.file-controller.presign.min-expiry-seconds: 预签名URL最小有效期，默认 60</li>
+     *   <li>file-service.file-controller.presign.max-expiry-seconds: 预签名URL最大有效期，默认 604800</li>
+     *   <li>file-service.file-controller.pagination.default-size: 分页默认大小，默认 20</li>
+     *   <li>file-service.file-controller.pagination.max-size: 分页最大大小，默认 100</li>
+     * </ul>
+     */
+    @Bean
+    @ConditionalOnMissingBean(FileControllerConfig.class)
+    public FileControllerConfig fileControllerConfig(FileServiceProperties properties) {
+        FileServiceProperties.FileControllerProperties controllerProps = properties.getFileController();
+        FileServiceProperties.PresignProperties presignProps = controllerProps.getPresign();
+        FileServiceProperties.PaginationProperties paginationProps = controllerProps.getPagination();
+        
+        return new FileControllerConfig(
+                controllerProps.getMaxFileKeyLength(),
+                presignProps.getDefaultExpirySeconds(),
+                presignProps.getMinExpirySeconds(),
+                presignProps.getMaxExpirySeconds(),
+                paginationProps.getDefaultSize(),
+                paginationProps.getMaxSize()
+        );
+    }
+}

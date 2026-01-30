@@ -1,10 +1,7 @@
 package tech.icc.filesrv.core.application.entrypoint;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -12,7 +9,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,6 +26,7 @@ import tech.icc.filesrv.common.context.Result;
 import tech.icc.filesrv.common.exception.FileNotFoundException;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
 import tech.icc.filesrv.core.application.entrypoint.assembler.FileInfoAssembler;
+import tech.icc.filesrv.config.FileControllerConfig;
 import tech.icc.filesrv.core.application.entrypoint.model.FileMeta;
 import tech.icc.filesrv.core.application.entrypoint.model.FileInfoResponse;
 import tech.icc.filesrv.core.application.entrypoint.model.FileUploadRequest;
@@ -54,19 +51,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class FileController {
 
-    /** 文件标识最大长度 */
-    private static final int MAX_FILE_KEY_LENGTH = 128;
-
-    /** 预签名 URL 默认有效期（秒） */
-    private static final int DEFAULT_PRESIGN_EXPIRY_SECONDS = 3600;
-
-    /** 预签名 URL 最小有效期（秒） */
-    private static final int MIN_PRESIGN_EXPIRY_SECONDS = 60;
-
-    /** 预签名 URL 最大有效期（秒），7 天 */
-    private static final int MAX_PRESIGN_EXPIRY_SECONDS = 604800;
-
     private final FileService service;
+    private final FileControllerConfig config;
 
     /**
      * 下载文件
@@ -80,8 +66,13 @@ public class FileController {
     public ResponseEntity<Resource> getFile(
             @PathVariable("fkey")
             @NotBlank(message = "文件标识不能为空")
-            @Size(max = MAX_FILE_KEY_LENGTH, message = "文件标识长度不能超过 128 字符")
             String fileKey) {
+        
+        // 手动校验文件标识长度
+        if (fileKey.length() > config.getMaxFileKeyLength()) {
+            throw new IllegalArgumentException(
+                String.format("文件标识长度不能超过 %d 字符", config.getMaxFileKeyLength()));
+        }
         log.info("[Download] Start, fileKey={}", fileKey);
         
         return service.getFileInfo(fileKey)
@@ -121,8 +112,13 @@ public class FileController {
     public Result<FileMeta> getFileMetadata(
             @PathVariable("fkey")
             @NotBlank(message = "文件标识不能为空")
-            @Size(max = MAX_FILE_KEY_LENGTH, message = "文件标识长度不能超过 128 字符")
             String fileKey) {
+        
+        // 手动校验文件标识长度
+        if (fileKey.length() > config.getMaxFileKeyLength()) {
+            throw new IllegalArgumentException(
+                String.format("文件标识长度不能超过 %d 字符", config.getMaxFileKeyLength()));
+        }
         log.info("[GetMetadata] Start, fileKey={}", fileKey);
         
         FileInfoDto dto = service.getFileInfo(fileKey)
@@ -149,8 +145,13 @@ public class FileController {
     public ResponseEntity<Void> deleteFile(
             @PathVariable("fkey")
             @NotBlank(message = "文件标识不能为空")
-            @Size(max = MAX_FILE_KEY_LENGTH, message = "文件标识长度不能超过 128 字符")
             String fileKey) {
+        
+        // 手动校验文件标识长度
+        if (fileKey.length() > config.getMaxFileKeyLength()) {
+            throw new IllegalArgumentException(
+                String.format("文件标识长度不能超过 %d 字符", config.getMaxFileKeyLength()));
+        }
         log.info("[Delete] Start, fileKey={}", fileKey);
         service.delete(fileKey);
         log.info("[Delete] Success, fileKey={}", fileKey);
@@ -169,22 +170,31 @@ public class FileController {
      * <p>
      * 返回的 URL 中已包含签名和过期时间参数，无需额外处理。
      *
-     * @param fileKey   文件唯一标识（1-128 字符）
-     * @param expiresIn URL 有效期（秒），默认 3600，范围 60-604800（7天）
+     * @param fileKey   文件唯一标识
+     * @param expiresIn URL 有效期（秒），默认值和范围由配置决定
      * @return 预签名 URL（包含签名和过期时间参数）
      */
     @GetMapping("/{fkey}/presign")
     public Result<String> getPresignedUrl(
             @PathVariable("fkey")
             @NotBlank(message = "文件标识不能为空")
-            @Size(max = MAX_FILE_KEY_LENGTH, message = "文件标识长度不能超过 128 字符")
             String fileKey,
             @RequestParam(value = "expiresIn", required = false)
-            @Min(value = MIN_PRESIGN_EXPIRY_SECONDS, message = "有效期最小为 60 秒")
-            @Max(value = MAX_PRESIGN_EXPIRY_SECONDS, message = "有效期最大为 604800 秒（7天）")
             Integer expiresIn) {
-
-        int expiry = expiresIn != null ? expiresIn : DEFAULT_PRESIGN_EXPIRY_SECONDS;
+        
+        // 手动校验文件标识长度
+        if (fileKey.length() > config.getMaxFileKeyLength()) {
+            throw new IllegalArgumentException(
+                String.format("文件标识长度不能超过 %d 字符", config.getMaxFileKeyLength()));
+        }
+        
+        // 使用配置的默认值或校验范围
+        int expiry = expiresIn != null ? expiresIn : config.getDefaultPresignExpirySeconds();
+        if (expiry < config.getMinPresignExpirySeconds() || expiry > config.getMaxPresignExpirySeconds()) {
+            throw new IllegalArgumentException(
+                String.format("有效期必须在 %d-%d 秒之间",
+                    config.getMinPresignExpirySeconds(), config.getMaxPresignExpirySeconds()));
+        }
         log.info("[Presign] Start, fileKey={}, expiry={}s", fileKey, expiry);
 
         String url = service.getPresignedUrl(fileKey, Duration.ofSeconds(expiry));
@@ -230,20 +240,26 @@ public class FileController {
      * 根据查询条件分页检索文件元数据，支持按文件名、类型、所有者等条件筛选。
      *
      * @param request  查询条件（所有字段可选）
-     * @param pageable 分页参数，默认 page=0, size=20, 最大 size=100
+     * @param pageable 分页参数，默认值和最大值由配置决定
      * @return 分页的文件元数据列表
      */
     @PostMapping("/metadata")
     public Result<Page<FileMeta>> queryMetadata(
             @Valid @RequestBody MetaQueryRequest request,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            Pageable pageable) {
+        
+        // 使用配置的默认值
+        if (pageable.isUnpaged()) {
+            pageable = PageRequest.of(0, config.getDefaultPageSize(),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+        }
         
         // 限制最大分页大小，防止一次查询过多数据
-        int maxPageSize = 100;
-        if (pageable.getPageSize() > maxPageSize) {
-            log.warn("[QueryMetadata] Page size {} exceeds max {}, using max", pageable.getPageSize(), maxPageSize);
+        if (pageable.getPageSize() > config.getMaxPageSize()) {
+            log.warn("[QueryMetadata] Page size {} exceeds max {}, using max",
+                pageable.getPageSize(), config.getMaxPageSize());
             pageable = PageRequest.of(
-                    pageable.getPageNumber(), maxPageSize, pageable.getSort());
+                    pageable.getPageNumber(), config.getMaxPageSize(), pageable.getSort());
         }
 
         log.info("[QueryMetadata] Start, request={}, page={}, size={}",

@@ -1,0 +1,67 @@
+{
+  "groups": [
+    {
+      "name": "file-service.file-controller",
+      "type": "tech.icc.filesrv.config.FileServiceProperties$FileControllerProperties",
+      "sourceType": "tech.icc.filesrv.config.FileServiceProperties",
+      "description": "文件控制器相关配置"
+    },
+    {
+      "name": "file-service.file-controller.presign",
+      "type": "tech.icc.filesrv.config.FileServiceProperties$PresignProperties",
+      "sourceType": "tech.icc.filesrv.config.FileServiceProperties$FileControllerProperties",
+      "description": "预签名URL配置"
+    },
+    {
+      "name": "file-service.file-controller.pagination",
+      "type": "tech.icc.filesrv.config.FileServiceProperties$PaginationProperties",
+      "sourceType": "tech.icc.filesrv.config.FileServiceProperties$FileControllerProperties",
+      "description": "分页配置"
+    }
+  ],
+  "properties": [
+    {
+      "name": "file-service.file-controller.max-file-key-length",
+      "type": "java.lang.Integer",
+      "sourceType": "tech.icc.filesrv.config.FileServiceProperties$FileControllerProperties",
+      "description": "文件标识最大长度",
+      "defaultValue": 128
+    },
+    {
+      "name": "file-service.file-controller.presign.default-expiry-seconds",
+      "type": "java.lang.Integer",
+      "sourceType": "tech.icc.filesrv.config.FileServiceProperties$PresignProperties",
+      "description": "预签名URL默认有效期（秒）",
+      "defaultValue": 3600
+    },
+    {
+      "name": "file-service.file-controller.presign.min-expiry-seconds",
+      "type": "java.lang.Integer",
+      "sourceType": "tech.icc.filesrv.config.FileServiceProperties$PresignProperties",
+      "description": "预签名URL最小有效期（秒）",
+      "defaultValue": 60
+    },
+    {
+      "name": "file-service.file-controller.presign.max-expiry-seconds",
+      "type": "java.lang.Integer",
+      "sourceType": "tech.icc.filesrv.config.FileServiceProperties$PresignProperties",
+      "description": "预签名URL最大有效期（秒），7天",
+      "defaultValue": 604800
+    },
+    {
+      "name": "file-service.file-controller.pagination.default-size",
+      "type": "java.lang.Integer",
+      "sourceType": "tech.icc.filesrv.config.FileServiceProperties$PaginationProperties",
+      "description": "分页默认每页大小",
+      "defaultValue": 20
+    },
+    {
+      "name": "file-service.file-controller.pagination.max-size",
+      "type": "java.lang.Integer",
+      "sourceType": "tech.icc.filesrv.config.FileServiceProperties$PaginationProperties",
+      "description": "分页最大每页大小",
+      "defaultValue": 100
+    }
+  ],
+  "hints": []
+}

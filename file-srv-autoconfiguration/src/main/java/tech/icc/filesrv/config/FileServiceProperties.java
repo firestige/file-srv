@@ -1,5 +1,6 @@
 package tech.icc.filesrv.config;
 
+import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
@@ -7,6 +8,7 @@ import java.time.Duration;
 /**
  * 文件服务配置属性
  */
+@Data
 @ConfigurationProperties(prefix = "file-service")
 public class FileServiceProperties {
 
@@ -14,42 +16,12 @@ public class FileServiceProperties {
     private KafkaProperties kafka = new KafkaProperties();
     private CacheProperties cache = new CacheProperties();
     private BloomFilterProperties bloomFilter = new BloomFilterProperties();
-
-    public TaskProperties getTask() {
-        return task;
-    }
-
-    public void setTask(TaskProperties task) {
-        this.task = task;
-    }
-
-    public KafkaProperties getKafka() {
-        return kafka;
-    }
-
-    public void setKafka(KafkaProperties kafka) {
-        this.kafka = kafka;
-    }
-
-    public CacheProperties getCache() {
-        return cache;
-    }
-
-    public void setCache(CacheProperties cache) {
-        this.cache = cache;
-    }
-
-    public BloomFilterProperties getBloomFilter() {
-        return bloomFilter;
-    }
-
-    public void setBloomFilter(BloomFilterProperties bloomFilter) {
-        this.bloomFilter = bloomFilter;
-    }
+    private FileControllerProperties fileController = new FileControllerProperties();
 
     /**
      * 任务相关配置
      */
+    @Data
     public static class TaskProperties {
         
         /**
@@ -66,47 +38,17 @@ public class FileServiceProperties {
          * 任务超时时间
          */
         private Duration expireAfter = Duration.ofHours(24);
-
-        public String getTempDir() {
-            return tempDir;
-        }
-
-        public void setTempDir(String tempDir) {
-            this.tempDir = tempDir;
-        }
-
-        public Duration getTempFileTtl() {
-            return tempFileTtl;
-        }
-
-        public void setTempFileTtl(Duration tempFileTtl) {
-            this.tempFileTtl = tempFileTtl;
-        }
-
-        public Duration getExpireAfter() {
-            return expireAfter;
-        }
-
-        public void setExpireAfter(Duration expireAfter) {
-            this.expireAfter = expireAfter;
-        }
     }
 
     /**
      * Kafka 相关配置
      */
+    @Data
     public static class KafkaProperties {
         
         private TopicProperties topic = new TopicProperties();
 
-        public TopicProperties getTopic() {
-            return topic;
-        }
-
-        public void setTopic(TopicProperties topic) {
-            this.topic = topic;
-        }
-
+        @Data
         public static class TopicProperties {
             
             /**
@@ -118,28 +60,13 @@ public class FileServiceProperties {
              * 任务失败事件 Topic
              */
             private String taskFailed = "file-task-failed";
-
-            public String getTaskCompleted() {
-                return taskCompleted;
-            }
-
-            public void setTaskCompleted(String taskCompleted) {
-                this.taskCompleted = taskCompleted;
-            }
-
-            public String getTaskFailed() {
-                return taskFailed;
-            }
-
-            public void setTaskFailed(String taskFailed) {
-                this.taskFailed = taskFailed;
-            }
         }
     }
 
     /**
      * 缓存相关配置
      */
+    @Data
     public static class CacheProperties {
 
         /**
@@ -151,27 +78,12 @@ public class FileServiceProperties {
          * 缓存过期时间（秒）
          */
         private int expireSeconds = 30;
-
-        public int getMaxSize() {
-            return maxSize;
-        }
-
-        public void setMaxSize(int maxSize) {
-            this.maxSize = maxSize;
-        }
-
-        public int getExpireSeconds() {
-            return expireSeconds;
-        }
-
-        public void setExpireSeconds(int expireSeconds) {
-            this.expireSeconds = expireSeconds;
-        }
     }
 
     /**
      * 布隆过滤器配置
      */
+    @Data
     public static class BloomFilterProperties {
 
         /**
@@ -191,29 +103,66 @@ public class FileServiceProperties {
          * 误判率 (False Positive Probability)
          */
         private double fpp = 0.01;
+    }
 
-        public boolean isUseRedis() {
-            return useRedis;
-        }
+    /**
+     * 文件控制器相关配置
+     */
+    @Data
+    public static class FileControllerProperties {
 
-        public void setUseRedis(boolean useRedis) {
-            this.useRedis = useRedis;
-        }
+        /**
+         * 文件标识最大长度
+         */
+        private int maxFileKeyLength = 128;
 
-        public int getExpectedInsertions() {
-            return expectedInsertions;
-        }
+        /**
+         * 预签名URL配置
+         */
+        private PresignProperties presign = new PresignProperties();
 
-        public void setExpectedInsertions(int expectedInsertions) {
-            this.expectedInsertions = expectedInsertions;
-        }
+        /**
+         * 分页配置
+         */
+        private PaginationProperties pagination = new PaginationProperties();
+    }
 
-        public double getFpp() {
-            return fpp;
-        }
+    /**
+     * 预签名URL配置
+     */
+    @Data
+    public static class PresignProperties {
 
-        public void setFpp(double fpp) {
-            this.fpp = fpp;
-        }
+        /**
+         * 默认有效期（秒）
+         */
+        private int defaultExpirySeconds = 3600;
+
+        /**
+         * 最小有效期（秒）
+         */
+        private int minExpirySeconds = 60;
+
+        /**
+         * 最大有效期（秒），7天
+         */
+        private int maxExpirySeconds = 604800;
+    }
+
+    /**
+     * 分页配置
+     */
+    @Data
+    public static class PaginationProperties {
+
+        /**
+         * 默认每页大小
+         */
+        private int defaultSize = 20;
+
+        /**
+         * 最大每页大小
+         */
+        private int maxSize = 100;
     }
 }
