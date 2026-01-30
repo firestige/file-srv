@@ -10,14 +10,19 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 import tech.icc.filesrv.common.spi.storage.StorageAdapter;
-import tech.icc.filesrv.common.spi.storage.UploadResult;
+import tech.icc.filesrv.common.spi.storage.StorageResult;
 import tech.icc.filesrv.common.vo.file.AccessControl;
-import tech.icc.filesrv.common.vo.file.OwnerInfo;
-import tech.icc.filesrv.core.application.dto.FileInfoDto;
+import tech.icc.filesrv.common.vo.audit.OwnerInfo;
+import tech.icc.filesrv.core.TestApplication;
+import tech.icc.filesrv.core.application.service.dto.FileInfoDto;
 import tech.icc.filesrv.core.domain.files.FileReferenceRepository;
 import tech.icc.filesrv.core.domain.services.DeduplicationService;
+import tech.icc.filesrv.core.domain.services.StorageRoutingService;
+import tech.icc.filesrv.core.domain.storage.StorageNode;
+import tech.icc.filesrv.core.domain.storage.StoragePolicy;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -36,7 +41,7 @@ import static org.mockito.Mockito.when;
  * 2. 文件大小限制验证
  * 3. 文件查询功能
  */
-@SpringBootTest
+@SpringBootTest(classes = TestApplication.class)
 @ActiveProfiles("test")
 @Transactional
 @DisplayName("FileService 核心流程测试")
@@ -54,11 +59,25 @@ class FileServiceIntegrationTest {
     @MockBean
     private DeduplicationService deduplicationService;
 
+    @MockBean
+    private StorageRoutingService storageRoutingService;
+
     @BeforeEach
     void setUp() {
-        // Mock 去重服务：默认不去重
-        when(deduplicationService.findExistingFile(anyString()))
-                .thenReturn(null);
+        // Mock 去重服务：默认不存在相同内容（不秒传）
+        when(deduplicationService.findByContentHash(anyString()))
+                .thenReturn(java.util.Optional.empty());
+        when(deduplicationService.computeHash(any(byte[].class)))
+                .thenReturn("mock-content-hash-" + System.currentTimeMillis());
+
+        // Mock 存储路由服务
+        StorageNode mockNode = StorageNode.create("test-node", "Test Node", "local");
+        when(storageRoutingService.selectNode(any(StoragePolicy.class)))
+                .thenReturn(mockNode);
+        when(storageRoutingService.getAdapter(anyString()))
+                .thenReturn(storageAdapter);
+        when(storageRoutingService.buildStoragePath(anyString(), anyString()))
+                .thenReturn("storage/mock-path");
     }
 
     @Test
@@ -73,30 +92,40 @@ class FileServiceIntegrationTest {
                 content
         );
 
-        OwnerInfo owner = new OwnerInfo("user123", "测试用户");
+        OwnerInfo owner = OwnerInfo.builder()
+                .createdBy("user123")
+                .creatorName("测试用户")
+                .build();
         AccessControl accessControl = AccessControl.privateAccess();
 
-        // Mock 存储适配器返回成功结果
-        UploadResult uploadResult = UploadResult.builder()
-                .storageKey("storage/test-key-123")
-                .etag("mock-etag-abc")
-                .size((long) content.length)
+        // 构建 FileInfoDto
+        FileInfoDto fileInfoDto = FileInfoDto.builder()
+                .owner(owner)
+                .access(accessControl)
                 .build();
-        when(storageAdapter.upload(any(), any(), anyLong()))
+
+        // Mock 存储适配器返回成功结果
+        StorageResult uploadResult = StorageResult.of(
+                "storage/test-key-123",
+                "mock-etag-abc",
+                (long) content.length
+        );
+        when(storageAdapter.upload(anyString(), any(InputStream.class), anyString()))
                 .thenReturn(uploadResult);
 
         // When: 执行上传
-        FileInfoDto result = fileService.upload(file, owner, accessControl, null);
+        FileInfoDto result = fileService.upload(fileInfoDto, file);
 
         // Then: 验证结果
         assertThat(result).isNotNull();
-        assertThat(result.getFileName()).isEqualTo("test.txt");
-        assertThat(result.getSize()).isEqualTo(content.length);
-        assertThat(result.getOwnerId()).isEqualTo("user123");
-        assertThat(result.getFkey()).isNotBlank();
+        assertThat(result.identity()).isNotNull();
+        assertThat(result.identity().fileName()).isEqualTo("test.txt");
+        assertThat(result.identity().fileSize()).isEqualTo(content.length);
+        assertThat(result.owner().createdBy()).isEqualTo("user123");
+        assertThat(result.identity().fKey()).isNotBlank();
 
         // 验证数据库中存在该记录
-        assertThat(fileReferenceRepository.findByFKey(result.getFkey())).isPresent();
+        assertThat(fileReferenceRepository.findByFKey(result.identity().fKey())).isPresent();
     }
 
     @Test
@@ -111,13 +140,20 @@ class FileServiceIntegrationTest {
                 largeContent
         );
 
-        OwnerInfo owner = new OwnerInfo("user123", "测试用户");
+        OwnerInfo owner = OwnerInfo.builder()
+                .createdBy("user123")
+                .creatorName("测试用户")
+                .build();
         AccessControl accessControl = AccessControl.privateAccess();
 
+        FileInfoDto fileInfoDto = FileInfoDto.builder()
+                .owner(owner)
+                .access(accessControl)
+                .build();
+
         // When & Then: 执行上传，期望抛出异常
-        assertThatThrownBy(() -> fileService.upload(largeFile, owner, accessControl, null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("文件大小超过限制");
+        assertThatThrownBy(() -> fileService.upload(fileInfoDto, largeFile))
+                .hasMessageContaining("File size exceeds limit");
     }
 
     @Test
@@ -132,40 +168,49 @@ class FileServiceIntegrationTest {
                 content
         );
 
-        OwnerInfo owner = new OwnerInfo("user456", "查询测试用户");
-        AccessControl accessControl = AccessControl.publicReadAccess();
-
-        UploadResult uploadResult = UploadResult.builder()
-                .storageKey("storage/query-test-key")
-                .etag("query-etag-xyz")
-                .size((long) content.length)
+        OwnerInfo owner = OwnerInfo.builder()
+                .createdBy("user456")
+                .creatorName("查询测试用户")
                 .build();
-        when(storageAdapter.upload(any(), any(), anyLong()))
+        AccessControl accessControl = AccessControl.publicAccess();
+
+        FileInfoDto fileInfoDto = FileInfoDto.builder()
+                .owner(owner)
+                .access(accessControl)
+                .build();
+
+        StorageResult uploadResult = StorageResult.of(
+                "storage/query-test-key",
+                "query-etag-xyz",
+                (long) content.length
+        );
+        when(storageAdapter.upload(anyString(), any(InputStream.class), anyString()))
                 .thenReturn(uploadResult);
 
-        FileInfoDto uploaded = fileService.upload(file, owner, accessControl, null);
-        String fkey = uploaded.getFkey();
+        FileInfoDto uploaded = fileService.upload(fileInfoDto, file);
+        String fkey = uploaded.identity().fKey();
 
         // When: 查询文件信息
-        FileInfoDto retrieved = fileService.getFileInfo(fkey);
+        java.util.Optional<FileInfoDto> retrieved = fileService.getFileInfo(fkey);
 
         // Then: 验证查询结果
-        assertThat(retrieved).isNotNull();
-        assertThat(retrieved.getFkey()).isEqualTo(fkey);
-        assertThat(retrieved.getFileName()).isEqualTo("query-test.txt");
-        assertThat(retrieved.getSize()).isEqualTo(content.length);
-        assertThat(retrieved.getOwnerId()).isEqualTo("user456");
-        assertThat(retrieved.getAccessControl()).isNotNull();
-        assertThat(retrieved.getAccessControl().getAccessLevel()).isEqualTo("public_read");
+        assertThat(retrieved).isPresent();
+        FileInfoDto result = retrieved.get();
+        assertThat(result.identity().fKey()).isEqualTo(fkey);
+        assertThat(result.identity().fileName()).isEqualTo("query-test.txt");
+        assertThat(result.identity().fileSize()).isEqualTo(content.length);
+        assertThat(result.owner().createdBy()).isEqualTo("user456");
+        assertThat(result.access()).isNotNull();
+        assertThat(result.access().isPublic()).isTrue();
     }
 
     @Test
-    @DisplayName("查询不存在的文件应该返回 null")
-    void shouldReturnNullForNonExistentFile() {
+    @DisplayName("查询不存在的文件应该返回 empty")
+    void shouldReturnEmptyForNonExistentFile() {
         // When: 查询一个不存在的 fkey
-        FileInfoDto result = fileService.getFileInfo("non-existent-fkey-12345");
+        java.util.Optional<FileInfoDto> result = fileService.getFileInfo("non-existent-fkey-12345");
 
-        // Then: 应该返回 null
-        assertThat(result).isNull();
+        // Then: 应该返回 empty
+        assertThat(result).isEmpty();
     }
 }
