@@ -13,8 +13,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import tech.icc.filesrv.common.constants.ResultCode;
 import tech.icc.filesrv.common.context.Result;
-import tech.icc.filesrv.common.exception.AccessDeniedException;
-import tech.icc.filesrv.common.exception.FileNotFoundException;
+import tech.icc.filesrv.common.exception.validation.AccessDeniedException;
+import tech.icc.filesrv.common.exception.validation.FileNotFoundException;
 import tech.icc.filesrv.common.exception.FileServiceException;
 
 import java.util.stream.Collectors;

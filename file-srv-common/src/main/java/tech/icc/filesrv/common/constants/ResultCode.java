@@ -18,11 +18,17 @@ public interface ResultCode {
     /** 400 - 请求参数错误 */
     int BAD_REQUEST = 0x40000;
 
+    /** 400 - 无效的参数 */
+    int INVALID_PARAMETER = 0x40001;
+
     /** 403 - 访问被拒绝 */
     int ACCESS_DENIED = 0x40300;
 
     /** 404 - 文件未找到 */
     int FILE_NOT_FOUND = 0x40400;
+
+    /** 404 - 任务未找到 */
+    int TASK_NOT_FOUND = 0x40401;
 
     /** 409 - 文件未就绪 */
     int FILE_NOT_READY = 0x40900;
@@ -39,4 +45,6 @@ public interface ResultCode {
 
     /** 503 - 存储服务不可用 */
     int STORAGE_UNAVAILABLE = 0x50300;
+    /** 504 - 错误的 fkey*/
+    int INVALID_FKEY = 0x50400;
 }

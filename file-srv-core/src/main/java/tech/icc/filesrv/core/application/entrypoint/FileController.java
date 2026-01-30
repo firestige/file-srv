@@ -23,7 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import tech.icc.filesrv.common.constants.SystemConstant;
 import tech.icc.filesrv.common.context.Result;
-import tech.icc.filesrv.common.exception.FileNotFoundException;
+import tech.icc.filesrv.common.exception.validation.FileNotFoundException;
+import tech.icc.filesrv.common.exception.validation.FileKeyTooLongException;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
 import tech.icc.filesrv.core.application.entrypoint.assembler.FileInfoAssembler;
 import tech.icc.filesrv.config.FileControllerConfig;
@@ -70,8 +71,7 @@ public class FileController {
         
         // 手动校验文件标识长度
         if (fileKey.length() > config.getMaxFileKeyLength()) {
-            throw new IllegalArgumentException(
-                String.format("文件标识长度不能超过 %d 字符", config.getMaxFileKeyLength()));
+            throw new FileKeyTooLongException(config.getMaxFileKeyLength(), fileKey);
         }
         log.info("[Download] Start, fileKey={}", fileKey);
         

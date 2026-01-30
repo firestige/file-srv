@@ -6,9 +6,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tech.icc.filesrv.common.context.TaskContext;
-import tech.icc.filesrv.common.exception.InvalidTaskIdException;
-import tech.icc.filesrv.common.exception.TaskNotFoundException;
+import tech.icc.filesrv.common.exception.validation.InvalidTaskIdException;
+import tech.icc.filesrv.common.exception.validation.TaskNotFoundException;
 import tech.icc.filesrv.common.vo.task.*;
 import tech.icc.filesrv.core.application.service.dto.PartETagDto;
 import tech.icc.filesrv.core.application.service.dto.TaskInfoDto;
@@ -29,7 +28,6 @@ import tech.icc.filesrv.common.spi.storage.UploadSession;
 import java.io.InputStream;
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 /**
