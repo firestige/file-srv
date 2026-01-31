@@ -21,8 +21,15 @@ import java.util.List;
  *   <li>createUploadTask - returns Pending</li>
  *   <li>getTaskDetail - returns corresponding type based on actual status</li>
  * </ul>
+ * <p>
+ * Note: status field comes from TaskSummary which is unwrapped via @JsonUnwrapped.
+ * We use EXISTING_PROPERTY to leverage the status field from TaskSummary.
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "status")
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME, 
+        property = "status",
+        include = JsonTypeInfo.As.EXISTING_PROPERTY
+)
 @JsonSubTypes({
         @JsonSubTypes.Type(value = TaskResponse.Pending.class, name = "PENDING"),
         @JsonSubTypes.Type(value = TaskResponse.InProgress.class, name = "IN_PROGRESS"),
