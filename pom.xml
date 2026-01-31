@@ -23,12 +23,27 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        
+        <!-- Plugin versions -->
         <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
-        <lombok.version>1.18.34</lombok.version>
         <maven.surefire.plugin.version>3.1.2</maven.surefire.plugin.version>
+        <maven.failsafe.plugin.version>3.1.2</maven.failsafe.plugin.version>
         <jacoco.plugin.version>0.8.10</jacoco.plugin.version>
+        
+        <!-- Dependency versions -->
+        <lombok.version>1.18.34</lombok.version>
         <jmh.version>1.36</jmh.version>
         <junit.jupiter.version>5.10.0</junit.jupiter.version>
+        <mockito.version>5.5.0</mockito.version>
+        <assertj.version>3.24.2</assertj.version>
+        <testcontainers.version>1.19.3</testcontainers.version>
+        <rest-assured.version>5.3.2</rest-assured.version>
+        <awaitility.version>4.2.0</awaitility.version>
+        <datafaker.version>2.0.2</datafaker.version>
+        
+        <!-- Test execution control -->
+        <skip.unit.tests>false</skip.unit.tests>
+        <skip.integration.tests>true</skip.integration.tests>
     </properties>
 
     <dependencyManagement>
@@ -40,6 +55,13 @@
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -50,11 +72,21 @@
             <version>${lombok.version}</version>
             <optional>true</optional>
         </dependency>
+        
+        <!-- Test dependencies - 所有子模块继承 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.junit.vintage</groupId>
+                    <artifactId>junit-vintage-engine</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
+        
+        <!-- JUnit 5 -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
@@ -67,6 +99,52 @@
             <version>${junit.jupiter.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>${junit.jupiter.version}</version>
+            <scope>test</scope>
+        </dependency>
+        
+        <!-- Mockito -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+        
+        <!-- AssertJ - 更流畅的断言 -->
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+        
+        <!-- Awaitility - 异步测试 -->
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <version>${awaitility.version}</version>
+            <scope>test</scope>
+        </dependency>
+        
+        <!-- DataFaker - 测试数据生成 -->
+        <dependency>
+            <groupId>net.datafaker</groupId>
+            <artifactId>datafaker</artifactId>
+            <version>${datafaker.version}</version>
+            <scope>test</scope>
+        </dependency>
+        
+        <!-- JMH - 性能测试 -->
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-core</artifactId>
@@ -105,24 +183,70 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven.surefire.plugin.version}</version>
                     <configuration>
+                        <skipTests>${skip.unit.tests}</skipTests>
                         <useModulePath>false</useModulePath>
                         <forkCount>1C</forkCount>
                         <reuseForks>true</reuseForks>
                         <includes>
                             <include>**/*Test.java</include>
                             <include>**/*Tests.java</include>
-                            <include>**/*TestCase.java</include>
+                        </includes>
+                        <excludes>
+                            <!-- 排除集成测试 -->
+                            <exclude>**/*IT.java</exclude>
+                            <exclude>**/*IntegrationTest.java</exclude>
+                        </excludes>
+                        <systemPropertyVariables>
+                            <junit.jupiter.execution.parallel.enabled>true</junit.jupiter.execution.parallel.enabled>
+                            <junit.jupiter.execution.parallel.mode.default>concurrent</junit.jupiter.execution.parallel.mode.default>
+                            <junit.jupiter.execution.parallel.mode.classes.default>concurrent</junit.jupiter.execution.parallel.mode.classes.default>
+                        </systemPropertyVariables>
+                    </configuration>
+                </plugin>
+
+                <!-- Failsafe: 集成测试插件 -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>${maven.failsafe.plugin.version}</version>
+                    <configuration>
+                        <skipTests>${skip.integration.tests}</skipTests>
+                        <useModulePath>false</useModulePath>
+                        <includes>
+                            <include>**/*IT.java</include>
+                            <include>**/*IntegrationTest.java</include>
                         </includes>
                         <systemPropertyVariables>
                             <junit.jupiter.execution.parallel.enabled>false</junit.jupiter.execution.parallel.enabled>
                         </systemPropertyVariables>
                     </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>integration-test</goal>
+                                <goal>verify</goal>
+                            </goals>
+                        </execution>
+                    </executions>
                 </plugin>
 
                 <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>${jacoco.plugin.version}</version>
+                    <configuration>
+                        <excludes>
+                            <!-- Exclude constants and configuration classes -->
+                            <exclude>**/*Constants.class</exclude>
+                            <exclude>**/*Configuration.class</exclude>
+                            <exclude>**/*Config.class</exclude>
+                            <!-- Exclude simple DTOs/VOs without business logic -->
+                            <exclude>**/entrypoint/dto/**</exclude>
+                            <exclude>**/entrypoint/vo/**</exclude>
+                            <!-- Exclude Spring Boot auto-configuration -->
+                            <exclude>**/autoconfiguration/**</exclude>
+                        </excludes>
+                    </configuration>
                     <executions>
                         <execution>
                             <id>prepare-agent</id>
@@ -152,6 +276,11 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
             </plugin>
 
             <plugin>
@@ -190,5 +319,35 @@
             </plugin>
         </plugins>
     </build>
+
+    <!-- Profiles for different test scenarios -->
+    <profiles>
+        <!-- 集成测试 Profile：用于运行需要 Testcontainers 的测试 -->
+        <profile>
+            <id>integration-tests</id>
+            <properties>
+                <skip.integration.tests>false</skip.integration.tests>
+            </properties>
+        </profile>
+        
+        <!-- 快速构建 Profile：跳过所有测试 -->
+        <profile>
+            <id>fast</id>
+            <properties>
+                <skip.unit.tests>true</skip.unit.tests>
+                <skip.integration.tests>true</skip.integration.tests>
+                <skipTests>true</skipTests>
+            </properties>
+        </profile>
+        
+        <!-- CI Profile：只运行单元测试 -->
+        <profile>
+            <id>ci</id>
+            <properties>
+                <skip.unit.tests>false</skip.unit.tests>
+                <skip.integration.tests>true</skip.integration.tests>
+            </properties>
+        </profile>
+    </profiles>
 
 </project>

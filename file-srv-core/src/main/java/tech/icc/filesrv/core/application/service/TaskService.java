@@ -87,18 +87,17 @@ public class TaskService {
      * 创建上传任务
      *
      * @param request   文件请求信息
-     * @param callbacks 回调配置（逗号分隔的插件名）
-     * @param params    插件参数
+     * @param cfgs      回调配置
      * @return Pending 状态任务信息
      */
     @Transactional
-    public TaskInfoDto.Pending createTask(FileRequest request, String callbacks, Map<String, Object> params) {
+    public TaskInfoDto.Pending createTask(FileRequest request, List<CallbackConfig> cfgs) {
         // 验证所有 callback 插件都存在
-        validateCallbacks(callbacks);
+        validateCallbacks(cfgs);
 
         // 创建任务聚合
         String fKey = generateFKey(request);
-        TaskAggregate task = TaskAggregate.create(fKey, callbacks, params, DEFAULT_EXPIRE_AFTER);
+        TaskAggregate task = TaskAggregate.create(fKey, cfgs, DEFAULT_EXPIRE_AFTER);
 
         // 生成存储路径并开始上传会话
         String storagePath = buildStoragePath(fKey, request.contentType());
@@ -114,7 +113,7 @@ public class TaskService {
         idValidator.register(task.getTaskId());
         cacheService.cacheTask(task);
 
-        log.info("Task created: taskId={}, fKey={}, callbacks={}", task.getTaskId(), fKey, callbacks);
+        log.info("Task created: taskId={}, fKey={}, callbacks={}", task.getTaskId(), fKey, cfgs.stream().map(CallbackConfig::name).reduce(",", (a, b) -> a + b));
 
         return TaskInfoDto.Pending.builder()
                 .summary(toSummary(task))
@@ -122,15 +121,6 @@ public class TaskService {
                 .uploadUrl(null)  // 服务端中转，不需要预签名 URL
                 .partUploadUrls(null)
                 .build();
-    }
-
-
-    /**
-     * 创建上传任务（简化版本）
-     */
-    @Transactional
-    public TaskInfoDto.Pending createTask(FileRequest request, String callbacks) {
-        return createTask(request, callbacks, null);
     }
 
     /**
@@ -408,12 +398,12 @@ public class TaskService {
         cacheService.evictTask(taskId);
     }
 
-    private void validateCallbacks(String callbacks) {
-        if (callbacks == null || callbacks.isBlank()) {
+    private void validateCallbacks(List<CallbackConfig> cfgs) {
+        if (cfgs == null || cfgs.isEmpty()) {
             return;
         }
-        for (String name : callbacks.split(",")) {
-            String trimmed = name.trim();
+        for (CallbackConfig cfg : cfgs) {
+            String trimmed = cfg.name().trim();
             if (!trimmed.isEmpty() && !pluginRegistry.hasPlugin(trimmed)) {
                 throw new PluginNotFoundException(trimmed);
             }

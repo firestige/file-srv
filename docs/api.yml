@@ -11,10 +11,9 @@ servers:
 paths:
   /static/{fkey}:
     get:
-      summary: 下载公开文件（匿名访问）
+      summary: 访问公开文件（静态资源）
       description: |
-        提供公开文件的匿名访问端点，无需认证即可下载。
-        仅允许访问元数据中 `public=true` 的文件。
+        匿名访问公开文件的端点，无需认证。仅允许访问元数据中 `public=true` 的文件。
         典型使用场景：
         - 公开图片的直接引用（img src）
         - 公开文档的下载链接
@@ -360,11 +359,11 @@ paths:
           $ref: '#/components/responses/PayloadTooLarge'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-  /files/upload_task/{taskID}:
+  /files/upload_task/{taskId}:
     put:
       summary: 上传文件(分片)
       parameters:
-        - name: taskID
+        - name: taskId
           in: path
           required: true
           schema:
@@ -402,7 +401,7 @@ paths:
     get:
       summary: 查询上传任务状态
       parameters:
-        - name: taskID
+        - name: taskId
           in: path
           required: true
           schema:
@@ -418,11 +417,11 @@ paths:
                 $ref: '#/components/schemas/ApiResponseUploadTaskStatus'
         '404':
           $ref: '#/components/responses/NotFound'
-  /files/upload_task/{taskID}/complete:
+  /files/upload_task/{taskId}/complete:
     post:
       summary: 完成文件上传任务
       parameters:
-        - name: taskID
+        - name: taskId
           in: path
           required: true
           schema:
@@ -466,17 +465,23 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  /files/upload_task/{taskID}/abort:
+  /files/upload_task/{taskId}/abort:
     post:
       summary: 中止文件上传任务
       parameters:
-        - name: taskID
+        - name: taskId
           in: path
           required: true
           schema:
             type: string
             format: uuid
           description: 上传任务的唯一标识 ID
+        - name: reason
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 中止原因（可选）
       responses:
         '204':
           description: 中止文件上传任务成功（无响应体）

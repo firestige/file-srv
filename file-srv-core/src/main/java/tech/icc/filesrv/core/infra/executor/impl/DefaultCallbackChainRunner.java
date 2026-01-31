@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import tech.icc.filesrv.common.context.TaskContext;
 import tech.icc.filesrv.common.spi.plugin.PluginResult;
 import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
+import tech.icc.filesrv.common.vo.task.CallbackConfig;
 import tech.icc.filesrv.core.domain.events.TaskCompletedEvent;
 import tech.icc.filesrv.core.domain.events.TaskFailedEvent;
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
@@ -77,7 +78,7 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
         context.put(TaskContext.KEY_LOCAL_FILE_PATH, localPath.toString());
 
         try {
-            List<String> callbacks = task.getCallbacks();
+            List<CallbackConfig> callbacks = task.getCallbacks();
             int startIndex = task.getCurrentCallbackIndex();
 
             log.info("Starting callback chain: taskId={}, startIndex={}, totalCallbacks={}",
@@ -85,7 +86,7 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
 
             // 2. 从 startIndex 开始执行
             for (int i = startIndex; i < callbacks.size(); i++) {
-                String callbackName = callbacks.get(i);
+                String callbackName = callbacks.get(i).name();
                 log.info("Executing callback: taskId={}, callback={}, index={}",
                         task.getTaskId(), callbackName, i);
 

@@ -1,0 +1,28 @@
+# 测试环境配置 (使用 H2 内存数据库)
+
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+  
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+  
+  h2:
+    console:
+      enabled: false
+
+# 文件服务配置
+file-srv:
+  storage:
+    max-file-size: 10485760  # 10MB
+  deduplication:
+    enabled: false

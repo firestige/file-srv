@@ -51,7 +51,7 @@ public class FileReferenceRepositoryImpl implements FileReferenceRepository {
 
     @Override
     public boolean existsByFKey(String fKey) {
-        return jpaRepository.existsByFKey(fKey);
+        return jpaRepository.existsById(fKey);
     }
 
     @Override

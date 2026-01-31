@@ -11,6 +11,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import tech.icc.filesrv.common.vo.audit.AuditInfo;
+import tech.icc.filesrv.common.vo.audit.OwnerInfo;
+import tech.icc.filesrv.common.vo.file.AccessControl;
 import tech.icc.filesrv.core.domain.files.FileReference;
 import tech.icc.filesrv.core.domain.files.FileStatus;
 
@@ -97,9 +100,9 @@ public class FileReferenceEntity {
                 contentType,
                 size,
                 eTag,
-                new tech.icc.filesrv.common.vo.audit.OwnerInfo(ownerId, ownerName),
-                new tech.icc.filesrv.common.vo.file.AccessControl(isPublic != null && isPublic, null, java.util.Map.of()),
-                new tech.icc.filesrv.common.vo.audit.AuditInfo(createdAt, updatedAt)
+                new OwnerInfo(ownerId, ownerName),
+                new AccessControl(isPublic != null && isPublic),
+                new AuditInfo(createdAt, updatedAt)
         );
     }
 }

@@ -1,6 +1,8 @@
 package tech.icc.filesrv.core.domain.tasks;
 
+import org.aspectj.weaver.ast.Call;
 import tech.icc.filesrv.common.context.TaskContext;
+import tech.icc.filesrv.common.vo.task.CallbackConfig;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -32,7 +34,7 @@ public class TaskAggregate {
     private String filename;
 
     private List<PartInfo> parts;
-    private List<String> callbacks;
+    private List<CallbackConfig> callbacks;
     private int currentCallbackIndex;
 
     private TaskContext context;
@@ -48,43 +50,40 @@ public class TaskAggregate {
         // for JPA
     }
 
-    private TaskAggregate(String taskId, String fKey, List<String> callbacks,
-                          Map<String, Object> params, Duration expireAfter) {
+    private TaskAggregate(String taskId, String fKey, List<CallbackConfig> cfgs, Duration expireAfter) {
         this.taskId = taskId;
         this.fKey = fKey;
         this.status = TaskStatus.PENDING;
-        this.callbacks = callbacks != null ? new ArrayList<>(callbacks) : new ArrayList<>();
+        this.callbacks = cfgs != null ? new ArrayList<>(cfgs) : new ArrayList<>();
         this.currentCallbackIndex = 0;
         this.parts = new ArrayList<>();
+        Map<String, Map<String, String>> params = buildParams(callbacks);
         this.context = new TaskContext(params);
         this.createdAt = Instant.now();
         this.expiresAt = this.createdAt.plus(expireAfter);
+    }
+
+    private Map<String, Map<String, String>> buildParams(List<CallbackConfig> cfgs) {
+        Map<String, Map<String, String>> params = new HashMap<>();
+        for (CallbackConfig cfg : cfgs) {
+            Map<String, String> param = new HashMap<>();
+            params.put(String.format("plugin_%s", cfg.name()), param);
+            params.put(cfg.name(), param);
+        }
+        return params;
     }
 
     /**
      * 创建新任务
      *
      * @param fKey        用户文件标识
-     * @param callbacks   callback 列表（逗号分隔的字符串）
-     * @param params      初始参数
+     * @param cfgs        callback 列表
      * @param expireAfter 过期时间
      * @return 新任务
      */
-    public static TaskAggregate create(String fKey, String callbacks,
-                                        Map<String, Object> params, Duration expireAfter) {
+    public static TaskAggregate create(String fKey, List<CallbackConfig> cfgs, Duration expireAfter) {
         String taskId = UUID.randomUUID().toString();
-        List<String> callbackList = parseCallbacks(callbacks);
-        return new TaskAggregate(taskId, fKey, callbackList, params, expireAfter);
-    }
-
-    private static List<String> parseCallbacks(String callbacks) {
-        if (callbacks == null || callbacks.isBlank()) {
-            return new ArrayList<>();
-        }
-        return Arrays.stream(callbacks.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .toList();
+        return new TaskAggregate(taskId, fKey, cfgs, expireAfter);
     }
 
     // ==================== 领域行为 ====================
@@ -206,7 +205,7 @@ public class TaskAggregate {
         if (currentCallbackIndex >= callbacks.size()) {
             return Optional.empty();
         }
-        return Optional.of(callbacks.get(currentCallbackIndex));
+        return Optional.of(callbacks.get(currentCallbackIndex).name());
     }
 
     /**
@@ -293,7 +292,7 @@ public class TaskAggregate {
         return Collections.unmodifiableList(parts);
     }
 
-    public List<String> getCallbacks() {
+    public List<CallbackConfig> getCallbacks() {
         return Collections.unmodifiableList(callbacks);
     }
 
@@ -367,7 +366,7 @@ public class TaskAggregate {
         this.parts = parts;
     }
 
-    protected void setCallbacks(List<String> callbacks) {
+    protected void setCallbacks(List<CallbackConfig> callbacks) {
         this.callbacks = callbacks;
     }
 
