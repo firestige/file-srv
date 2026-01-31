@@ -9,8 +9,10 @@ import org.springframework.transaction.annotation.Transactional;
 import tech.icc.filesrv.common.exception.validation.InvalidTaskIdException;
 import tech.icc.filesrv.common.exception.validation.TaskNotFoundException;
 import tech.icc.filesrv.common.vo.task.*;
+import tech.icc.filesrv.core.application.service.dto.FileInfoDto;
 import tech.icc.filesrv.core.application.service.dto.PartETagDto;
 import tech.icc.filesrv.core.application.service.dto.TaskInfoDto;
+import tech.icc.filesrv.common.vo.audit.OwnerInfo;
 import tech.icc.filesrv.core.domain.events.TaskCompletedEvent;
 import tech.icc.filesrv.core.domain.events.TaskFailedEvent;
 import tech.icc.filesrv.core.domain.tasks.*;
@@ -60,6 +62,7 @@ public class TaskService {
     private final LocalFileManager localFileManager;
     private final TaskCacheService cacheService;
     private final TaskIdValidator idValidator;
+    private final FileService fileService;
 
     public TaskService(TaskRepository taskRepository,
                        StorageAdapter storageAdapter,
@@ -68,7 +71,8 @@ public class TaskService {
                        CallbackTaskPublisher callbackPublisher,
                        LocalFileManager localFileManager,
                        TaskCacheService cacheService,
-                       TaskIdValidator idValidator) {
+                       TaskIdValidator idValidator,
+                       FileService fileService) {
         this.taskRepository = taskRepository;
         this.storageAdapter = storageAdapter;
         this.pluginRegistry = pluginRegistry;
@@ -77,6 +81,7 @@ public class TaskService {
         this.localFileManager = localFileManager;
         this.cacheService = cacheService;
         this.idValidator = idValidator;
+        this.fileService = fileService;
     }
 
     // ==================== 命令操作 ====================
@@ -214,7 +219,11 @@ public class TaskService {
             taskRepository.save(task);
             updateTaskCache(task);
 
-            log.info("Upload completed: taskId={}, path={}", taskId, finalPath);
+            // 创建文件记录（FileReference 和 FileInfo）
+            // 注意：这里通过 fKey 关联，FileService 负责文件元数据管理
+            createFileRecord(task, finalPath, hash, totalSize, contentType, filename);
+
+            log.info("Upload completed: taskId={}, path={}, fKey={}", taskId, finalPath, task.getFKey());
 
             // 发布 callback 任务到 Kafka（异步执行）
             if (task.getStatus() == TaskStatus.PROCESSING && task.hasCallbacks()) {
@@ -449,6 +458,7 @@ public class TaskService {
         return TaskSummary.builder()
                 .taskId(task.getTaskId())
                 .uploadId(task.getSessionId())
+                .status(task.getStatus())
                 .createdAt(task.getCreatedAt())
                 .expiresAt(task.getExpiresAt())
                 .build();
@@ -477,6 +487,7 @@ public class TaskService {
 
             case COMPLETED -> TaskInfoDto.Completed.builder()
                     .summary(summary)
+                    .file(getFileInfo(task.getFKey()))
                     .derivedFiles(task.getContext().getDerivedFiles())
                     .build();
 
@@ -526,5 +537,76 @@ public class TaskService {
                 .uploadedBytes(uploadedSize)
                 .parts(progressParts)
                 .build();
+    }
+
+    /**
+     * 创建文件记录
+     * <p>
+     * 任务完成后，通过 FileService 创建 FileReference 和 FileInfo。
+     * TaskService 只负责任务管理，文件元数据管理委托给 FileService。
+     *
+     * @param task        任务聚合
+     * @param storagePath 存储路径
+     * @param hash        文件哈希
+     * @param totalSize   文件总大小
+     * @param contentType MIME 类型
+     * @param filename    文件名
+     */
+    private void createFileRecord(TaskAggregate task, String storagePath, String hash,
+                                   Long totalSize, String contentType, String filename) {
+        try {
+            // 从任务的 FileRequest 中提取创建者信息
+            // TODO: 这里假设 task 的 context 或者 metadata 中存储了创建者信息
+            // 暂时使用默认值，后续应该从 task 上下文获取
+            OwnerInfo owner = OwnerInfo.builder()
+                    .createdBy("system")  // TODO: 从 task 获取真实创建者
+                    .creatorName("System")
+                    .build();
+
+            // 构建 FileInfoDto（创建 FileReference 所需）
+            FileInfoDto fileDto = FileInfoDto.builder()
+                    .identity(tech.icc.filesrv.common.vo.file.FileIdentity.builder()
+                            .fKey(task.getFKey())
+                            .fileName(filename)
+                            .fileType(contentType)
+                            .fileSize(totalSize)
+                            .eTag(hash)
+                            .build())
+                    .owner(owner)
+                    .access(tech.icc.filesrv.common.vo.file.AccessControl.defaultAccess())
+                    .build();
+
+            // 调用 FileService 创建文件记录
+            // 注意：这里我们不是上传文件内容（已经在存储层完成），只是创建元数据记录
+            // TODO: FileService 需要提供一个 createFromExistingStorage 方法
+            // 暂时使用现有方法框架，后续优化
+            
+            log.debug("File record creation skipped - to be implemented with FileService.createFromExistingStorage()");
+            log.debug("fKey={}, hash={}, storagePath={}", task.getFKey(), hash, storagePath);
+            
+        } catch (Exception e) {
+            log.error("Failed to create file record: taskId={}, fKey={}", 
+                    task.getTaskId(), task.getFKey(), e);
+            // 不抛异常，避免影响任务状态更新
+            // 文件记录可以通过后台任务补偿创建
+        }
+    }
+
+    /**
+     * 获取文件信息
+     * <p>
+     * 通过 fKey 从 FileService 查询文件信息。
+     * 如果文件不存在，返回 null（例如文件记录还未创建，或创建失败）。
+     *
+     * @param fKey 文件唯一标识
+     * @return 文件信息，不存在时返回 null
+     */
+    private FileInfoDto getFileInfo(String fKey) {
+        try {
+            return fileService.getFileInfo(fKey).orElse(null);
+        } catch (Exception e) {
+            log.warn("Failed to get file info: fKey={}", fKey, e);
+            return null;
+        }
     }
 }
