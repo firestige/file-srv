@@ -21,6 +21,7 @@ import tech.icc.filesrv.test.support.stub.ObjectStorageServiceStub;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -125,13 +126,12 @@ class MultipartUploadScenarioTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.status").value("IN_PROGRESS"))
-                .andExpect(jsonPath("$.data.summary.taskId").value(taskId))
-                .andExpect(jsonPath("$.data.progress").exists())
-                .andExpect(jsonPath("$.data.progress.uploadedParts").value(1))
-                .andExpect(jsonPath("$.data.progress.uploadedBytes").exists())
-                .andExpect(jsonPath("$.data.progress.parts").isArray())
-                .andExpect(jsonPath("$.data.progress.parts[0].partNumber").value(1))
-                .andExpect(jsonPath("$.data.progress.parts[0].eTag").exists());
+                .andExpect(jsonPath("$.data.taskId").value(taskId))
+                .andExpect(jsonPath("$.data.uploadedParts").value(1))
+                .andExpect(jsonPath("$.data.uploadedBytes").exists())
+                .andExpect(jsonPath("$.data.parts").isArray())
+                .andExpect(jsonPath("$.data.parts[0].partNumber").value(1))
+                .andExpect(jsonPath("$.data.parts[0].eTag").exists());
     }
 
     @Test
@@ -153,14 +153,14 @@ class MultipartUploadScenarioTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.status").value("ABORTED"))
-                .andExpect(jsonPath("$.data.summary.taskId").value(taskId));
+                .andExpect(jsonPath("$.data.taskId").value(taskId));
     }
 
     @Test
     @DisplayName("应该拒绝对不存在的任务上传分片")
     @SuppressWarnings("null")
     void shouldRejectUploadPartForNonexistentTask() throws Exception {
-        String nonexistentTaskId = "nonexistent-task-id";
+        String nonexistentTaskId = UUID.randomUUID().toString();
         byte[] partData = "Some data".getBytes();
 
         mockMvc.perform(put("/api/v1/files/upload_task/{taskId}", nonexistentTaskId)
@@ -176,7 +176,7 @@ class MultipartUploadScenarioTest {
     @SuppressWarnings("null")
     @DisplayName("应该拒绝对不存在的任务完成上传")
     void shouldRejectCompleteForNonexistentTask() throws Exception {
-        String nonexistentTaskId = "nonexistent-task-id";
+        String nonexistentTaskId = UUID.randomUUID().toString();
 
         mockMvc.perform(post("/api/v1/files/upload_task/{taskId}/complete", nonexistentTaskId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -193,7 +193,7 @@ class MultipartUploadScenarioTest {
     @Test
     @DisplayName("应该拒绝对不存在的任务查询状态")
     void shouldReturn404ForNonexistentTask() throws Exception {
-        String nonexistentTaskId = "nonexistent-task-id";
+        String nonexistentTaskId = UUID.randomUUID().toString();
 
         mockMvc.perform(get("/api/v1/files/upload_task/{taskId}", nonexistentTaskId))
                 .andExpect(status().isNotFound())
@@ -245,9 +245,9 @@ class MultipartUploadScenarioTest {
         // 查询任务应该只有一个分片记录
         mockMvc.perform(get("/api/v1/files/upload_task/{taskId}", taskId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.progress.uploadedParts").value(1))
-                .andExpect(jsonPath("$.data.progress.parts").isArray())
-                .andExpect(jsonPath("$.data.progress.parts[0].eTag").value(secondUpload.eTag()));
+                .andExpect(jsonPath("$.data.uploadedParts").value(1))
+                .andExpect(jsonPath("$.data.parts").isArray())
+                .andExpect(jsonPath("$.data.parts[0].eTag").value(secondUpload.eTag()));
     }
 
     // ==================== 辅助方法 ====================

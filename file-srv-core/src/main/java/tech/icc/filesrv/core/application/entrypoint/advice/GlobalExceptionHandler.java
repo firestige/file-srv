@@ -16,6 +16,8 @@ import tech.icc.filesrv.common.context.Result;
 import tech.icc.filesrv.common.exception.validation.AccessDeniedException;
 import tech.icc.filesrv.common.exception.validation.FileNotFoundException;
 import tech.icc.filesrv.common.exception.FileServiceException;
+import tech.icc.filesrv.common.exception.validation.TaskNotFoundException;
+import tech.icc.filesrv.common.exception.validation.ValidationException;
 
 import java.util.stream.Collectors;
 
@@ -54,16 +56,24 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 处理文件未找到异常
+     * 处理检查异常
      * <p>
      * 返回 HTTP 404 状态码，适用于资源不存在的场景。
+     * 其他返回400状态码，适用于校验失败的场景。
      */
-    @ExceptionHandler(FileNotFoundException.class)
-    public ResponseEntity<Result<Void>> handleFileNotFoundException(FileNotFoundException e) {
-        log.warn("File not found: {}", e.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(Result.failure(e));
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<Result<Void>> handleFileOrTaskNotFoundException(ValidationException e) {
+        if (e instanceof FileNotFoundException || e instanceof TaskNotFoundException) {
+            log.warn("not found exception: {}", e.getMessage());
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(Result.failure(e));
+        } else {
+            log.warn("Validation exception: {}", e.getMessage());
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(Result.failure(e));
+        }
     }
 
     /**
@@ -75,7 +85,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Void>> handleFileServiceException(FileServiceException e) {
         log.warn("Business exception occurred: code={}, message={}", e.getCode(), e.getMessage());
         return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Result.failure(e));
     }
 
