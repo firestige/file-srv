@@ -1,0 +1,40 @@
+refactor: 修复API规范合规性并添加完整端点测试覆盖
+
+核心修改：
+1. FileUploadRequest：从 record + @JsonUnwrapped 转为扁平 POJO
+   - multipart/form-data 绑定需要标准 getter/setter
+   - 添加 fileName, fileType, createdBy 等必填字段
+   - 添加 getPublic/setPublic 处理 "public" 参数绑定
+
+2. FileInfoAssembler：重构 toDto 方法接收 MultipartFile
+   - 手动构造 FileIdentity, OwnerInfo, AccessControl VOs
+   - 使用请求参数的 fileName/fileType (符合 API 规范)
+   - 不再依赖 MultipartFile 的原始文件名
+
+3. FileController：修正参数传递
+   - uploadFile 添加 @Valid 注解启用校验
+   - 日志使用 request.getFileName() 而非 file.getOriginalFilename()
+   - 调用 assembler.toDto(request, file)
+
+4. FileService：使用元数据参数
+   - upload 方法使用 fileInfo.identity().fileName/fileType()
+   - 不再读取 MultipartFile.getOriginalFilename()
+
+5. FileResponseBuilder：修复上传响应 Content-Type
+   - 添加 lockContentType 标志位防止覆盖
+   - forUpload() 锁定 JSON Content-Type
+
+6. FileUploadScenarioTest：完整端点测试覆盖
+   - 添加 404 场景测试（5个端点）
+   - 添加下载、元数据、预签名、删除测试
+   - 添加公开文件访问/拒绝访问测试
+   - 添加 uploadAndGetFKey 辅助方法
+   - 移除 verify() 调用避免跨测试状态污染
+
+7. TaskAggregate：移除无用 import (org.aspectj.weaver.ast.Call)
+
+测试说明：
+- 集成测试使用 @Transactional 回滚数据库
+- @SpyBean 调用记录不受事务影响会累积
+- verify(times(1)) 在多测试运行时会失败
+- 已移除 Mockito 验证,改用端到端 HTTP 响应验证

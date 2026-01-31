@@ -99,13 +99,15 @@ public class FileService {
             throw new PayloadTooLargeException(file.getSize(), MAX_FILE_SIZE);
         }
 
-        // 1. 提取元数据
+        // 1. 提取元数据（fileName 和 fileType 从请求参数获取，已通过校验）
         OwnerInfo owner = Optional.ofNullable(fileInfo.owner()).orElse(OwnerInfo.system());
         AccessControl access = Optional.ofNullable(fileInfo.access()).orElse(AccessControl.defaultAccess());
         FileTags fileTags = Optional.ofNullable(fileInfo.fileTags()).orElse(FileTags.empty());
         CustomMetadata metadata = Optional.ofNullable(fileInfo.metadata()).orElse(CustomMetadata.empty());
-        String filename = file.getOriginalFilename();
-        String contentType = file.getContentType();
+        
+        // 使用请求参数中的 fileName 和 fileType（符合 API 规范）
+        String filename = fileInfo.identity().fileName();
+        String contentType = fileInfo.identity().fileType();
         long size = file.getSize();
 
         // 2. 创建文件引用（PENDING 状态）

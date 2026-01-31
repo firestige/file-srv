@@ -72,6 +72,13 @@ public class FileResponseBuilder {
     private MediaType contentType = MediaType.APPLICATION_OCTET_STREAM;
     private Long contentLength;
     private HttpStatus status = HttpStatus.OK;
+    
+    /**
+     * 是否锁定 Content-Type（防止被文件类型覆盖）
+     * 上传场景：响应体是 JSON，不应该被文件的 MIME 类型覆盖
+     * 下载场景：响应体是文件流，应该使用文件的 MIME 类型
+     */
+    private boolean lockContentType = false;
 
     private FileResponseBuilder() {}
 
@@ -88,8 +95,9 @@ public class FileResponseBuilder {
     public static FileResponseBuilder forUpload() {
         FileResponseBuilder builder = new FileResponseBuilder()
                 .status(HttpStatus.CREATED);
-        // 设置 JSON Content-Type
+        // 设置 JSON Content-Type 并锁定（防止被文件类型覆盖）
         builder.headers.setContentType(MediaType.APPLICATION_JSON);
+        builder.lockContentType = true;  // 上传响应体是 JSON，不是文件内容
         return builder;
     }
 
@@ -129,10 +137,13 @@ public class FileResponseBuilder {
     private void applyIdentity(FileIdentity identity) {
         Optional.ofNullable(identity.fKey()).ifPresent(k -> headers.set(HEADER_FILE_KEY, k));
 
-        Optional.ofNullable(identity.fileType()).ifPresent(type -> {
-            this.contentType = MediaType.parseMediaType(type);
-            headers.setContentType(this.contentType);
-        });
+        // 仅在未锁定时设置 Content-Type（下载场景使用文件类型，上传场景保持 JSON）
+        if (!lockContentType) {
+            Optional.ofNullable(identity.fileType()).ifPresent(type -> {
+                this.contentType = MediaType.parseMediaType(type);
+                headers.setContentType(this.contentType);
+            });
+        }
 
         Optional.ofNullable(identity.fileSize()).ifPresent(size -> {
             this.contentLength = size;

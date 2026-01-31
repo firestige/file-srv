@@ -27,28 +27,56 @@ public final class FileInfoAssembler {
 
     // ==================== Request → Criteria ====================
 
-    /**
-     * 将上传请求转换为应用层 DTO
-     *
-     * @param request API 层上传请求（可选的元数据）
-     * @return 应用层 DTO（部分填充，文件信息由 MultipartFile 提供）
-     */
-    public static FileInfoDto toDto(FileUploadRequest request) {
+        /**
+         * 将上传请求转换为应用层 DTO
+         *
+         * @param request API 层上传请求
+         * @param file    上传的文件（用于获取实际大小）
+         * @return 应用层 DTO（包含用户指定的 fileName 和 fileType）
+         */
+        public static FileInfoDto toDto(FileUploadRequest request, org.springframework.web.multipart.MultipartFile file) {
         if (request == null) {
             return FileInfoDto.builder()
-                    .owner(null)
-                    .access(null)
-                    .fileTags(null)
-                    .metadata(null)
-                    .build();
-        }
-        return FileInfoDto.builder()
-                .owner(request.owner())
-                .access(request.access() != null ? request.access() : AccessControl.defaultAccess())
-                .fileTags(request.fileTags() != null ? request.fileTags() : FileTags.empty())
-                .metadata(request.metadata() != null ? request.metadata() : CustomMetadata.empty())
+                .identity(null)
+                .owner(null)
+                .access(null)
+                .fileTags(null)
+                .metadata(null)
                 .build();
-    }
+        }
+
+        // 构建 FileIdentity（使用请求参数，不使用 MultipartFile 的原始值）
+        tech.icc.filesrv.common.vo.file.FileIdentity identity = tech.icc.filesrv.common.vo.file.FileIdentity.builder()
+            .fileName(request.getFileName())
+            .fileType(request.getFileType())
+            .fileSize(file != null ? file.getSize() : null)
+            .build();
+
+        tech.icc.filesrv.common.vo.audit.OwnerInfo owner = tech.icc.filesrv.common.vo.audit.OwnerInfo.builder()
+            .createdBy(request.getCreatedBy())
+            .creatorName(request.getCreatorName())
+            .build();
+
+        tech.icc.filesrv.common.vo.file.AccessControl access = new tech.icc.filesrv.common.vo.file.AccessControl(
+            request.getPublic() != null && request.getPublic()
+        );
+
+        tech.icc.filesrv.common.vo.file.FileTags tags = request.getTags() != null
+            ? tech.icc.filesrv.common.vo.file.FileTags.of(request.getTags())
+            : tech.icc.filesrv.common.vo.file.FileTags.empty();
+
+        tech.icc.filesrv.common.vo.file.CustomMetadata metadata = request.getCustomMetadata() != null
+            ? tech.icc.filesrv.common.vo.file.CustomMetadata.of(request.getCustomMetadata())
+            : tech.icc.filesrv.common.vo.file.CustomMetadata.empty();
+
+        return FileInfoDto.builder()
+            .identity(identity)
+            .owner(owner)
+            .access(access)
+            .fileTags(tags)
+            .metadata(metadata)
+            .build();
+        }
 
     /**
      * 将 API 层查询请求转换为应用层查询条件

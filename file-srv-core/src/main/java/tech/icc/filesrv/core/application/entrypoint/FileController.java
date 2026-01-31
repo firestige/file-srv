@@ -215,12 +215,12 @@ public class FileController {
      */
     @PostMapping("/upload")
     public ResponseEntity<Result<FileInfoResponse>> uploadFile(
-            @ModelAttribute FileUploadRequest request,
+            @Valid @ModelAttribute FileUploadRequest request,
             @RequestParam("file") MultipartFile file) {
-        log.info("[Upload] Start, filename={}, contentType={}, size={}", 
-                file.getOriginalFilename(), file.getContentType(), file.getSize());
+        log.info("[Upload] Start, filename={}, fileType={}, size={}", 
+            request.getFileName(), request.getFileType(), file.getSize());
         
-        FileInfoDto inputDto = FileInfoAssembler.toDto(request);
+        FileInfoDto inputDto = FileInfoAssembler.toDto(request, file);
         FileInfoDto resultDto = service.upload(inputDto, file);
         FileInfoResponse response = FileInfoAssembler.toResponse(resultDto);
         String resourceUri = SystemConstant.FILE_PATH + "/" + response.identity().fKey();
