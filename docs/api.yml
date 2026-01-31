@@ -336,11 +336,17 @@ paths:
                     - fileName
                     - fileType
                     - fileSize
+                    - contentHash
                   properties:
                     fileSize:
                       type: integer
                       format: int64
                       description: 文件大小（字节）
+                    contentHash:
+                      type: string
+                      pattern: '^[a-f0-9]{64}$'
+                      description: 文件内容 SHA-256 哈希值（由客户端计算，用于去重和完整性验证）
+                      example: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
                     callbacks:
                       type: array
                       description: 文件上传完成后的回调配置列表, 按顺序依次执行, 支持多种插件, 如果没有这些配置, 则表示不需要回调处理

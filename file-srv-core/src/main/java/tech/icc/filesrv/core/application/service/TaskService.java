@@ -100,7 +100,16 @@ public class TaskService {
 
         // 创建任务聚合
         String fKey = generateFKey(request);
-        TaskAggregate task = TaskAggregate.create(fKey, cfgs, DEFAULT_EXPIRE_AFTER);
+        TaskAggregate task = TaskAggregate.create(fKey, request.contentHash(), cfgs, DEFAULT_EXPIRE_AFTER);
+
+        // 委托 FileService 创建 PENDING 状态的文件元数据
+        fileService.createPendingFile(
+                fKey, 
+                request.filename(), 
+                request.size(), 
+                request.contentType(), 
+                request.owner()
+        );
 
         // 生成存储路径并开始上传会话
         String storagePath = buildStoragePath(fKey, request.contentType());
@@ -214,14 +223,18 @@ public class TaskService {
                     .toList();
             String finalPath = session.complete(partEtags);
 
+            // 委托 FileService 激活文件（创建 FileInfo + 绑定 FileReference）
+            fileService.activateFile(
+                    task.getFKey(),
+                    hash,
+                    finalPath,
+                    getNodeId()
+            );
+
             // 更新任务状态
             task.completeUpload(finalPath, hash, totalSize, contentType, filename);
             taskRepository.save(task);
             updateTaskCache(task);
-
-            // 创建文件记录（FileReference 和 FileInfo）
-            // 注意：这里通过 fKey 关联，FileService 负责文件元数据管理
-            createFileRecord(task, finalPath, hash, totalSize, contentType, filename);
 
             log.info("Upload completed: taskId={}, path={}, fKey={}", taskId, finalPath, task.getFKey());
 
@@ -257,7 +270,8 @@ public class TaskService {
         List<PartInfo> partInfos = task.getSortedParts();
         long totalSize = partInfos.stream().mapToLong(PartInfo::size).sum();
 
-        completeUpload(taskId, parts, null, totalSize, task.getContentType(), task.getFilename());
+        // 关键：使用任务中存储的 contentHash（客户端计算）
+        completeUpload(taskId, parts, task.getContentHash(), totalSize, task.getContentType(), task.getFilename());
     }
 
     /**
@@ -537,59 +551,6 @@ public class TaskService {
                 .uploadedBytes(uploadedSize)
                 .parts(progressParts)
                 .build();
-    }
-
-    /**
-     * 创建文件记录
-     * <p>
-     * 任务完成后，通过 FileService 创建 FileReference 和 FileInfo。
-     * TaskService 只负责任务管理，文件元数据管理委托给 FileService。
-     *
-     * @param task        任务聚合
-     * @param storagePath 存储路径
-     * @param hash        文件哈希
-     * @param totalSize   文件总大小
-     * @param contentType MIME 类型
-     * @param filename    文件名
-     */
-    private void createFileRecord(TaskAggregate task, String storagePath, String hash,
-                                   Long totalSize, String contentType, String filename) {
-        try {
-            // 从任务的 FileRequest 中提取创建者信息
-            // TODO: 这里假设 task 的 context 或者 metadata 中存储了创建者信息
-            // 暂时使用默认值，后续应该从 task 上下文获取
-            OwnerInfo owner = OwnerInfo.builder()
-                    .createdBy("system")  // TODO: 从 task 获取真实创建者
-                    .creatorName("System")
-                    .build();
-
-            // 构建 FileInfoDto（创建 FileReference 所需）
-            FileInfoDto fileDto = FileInfoDto.builder()
-                    .identity(tech.icc.filesrv.common.vo.file.FileIdentity.builder()
-                            .fKey(task.getFKey())
-                            .fileName(filename)
-                            .fileType(contentType)
-                            .fileSize(totalSize)
-                            .eTag(hash)
-                            .build())
-                    .owner(owner)
-                    .access(tech.icc.filesrv.common.vo.file.AccessControl.defaultAccess())
-                    .build();
-
-            // 调用 FileService 创建文件记录
-            // 注意：这里我们不是上传文件内容（已经在存储层完成），只是创建元数据记录
-            // TODO: FileService 需要提供一个 createFromExistingStorage 方法
-            // 暂时使用现有方法框架，后续优化
-            
-            log.debug("File record creation skipped - to be implemented with FileService.createFromExistingStorage()");
-            log.debug("fKey={}, hash={}, storagePath={}", task.getFKey(), hash, storagePath);
-            
-        } catch (Exception e) {
-            log.error("Failed to create file record: taskId={}, fKey={}", 
-                    task.getTaskId(), task.getFKey(), e);
-            // 不抛异常，避免影响任务状态更新
-            // 文件记录可以通过后台任务补偿创建
-        }
     }
 
     /**

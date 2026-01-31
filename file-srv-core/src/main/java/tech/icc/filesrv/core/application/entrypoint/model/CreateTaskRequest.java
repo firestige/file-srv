@@ -28,6 +28,10 @@ public class CreateTaskRequest {
     @NotNull(message = "文件大小不能为空")
     private Long size;
 
+    /** 文件内容 Hash（必填，客户端计算的 SHA-256）*/
+    @NotBlank(message = "文件hash不能为空")
+    private String contentHash;
+
     /** 期望的 ETag/校验和（可选） */
     private String eTag;
 
@@ -78,6 +82,14 @@ public class CreateTaskRequest {
 
     public void setSize(Long size) {
         this.size = size;
+    }
+
+    public String getContentHash() {
+        return contentHash;
+    }
+
+    public void setContentHash(String contentHash) {
+        this.contentHash = contentHash;
     }
 
     public String getETag() {

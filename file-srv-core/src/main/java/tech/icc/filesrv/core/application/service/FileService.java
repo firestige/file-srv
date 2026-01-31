@@ -211,6 +211,100 @@ public class FileService {
     }
 
     /**
+     * 创建 PENDING 状态的文件引用
+     * <p>
+     * 用于异步上传任务开始时预先创建文件元数据。
+     * 文件此时还未上传，状态为 PENDING（未绑定 contentHash）。
+     *
+     * @param fKey        文件唯一标识（由调用方生成，通常是任务的 fKey）
+     * @param filename    文件名
+     * @param size        文件大小
+     * @param contentType MIME 类型
+     * @param owner       所有者信息
+     * @return 创建的文件引用
+     */
+    @Transactional
+    public FileReference createPendingFile(String fKey, String filename, Long size, 
+                                           String contentType, OwnerInfo owner) {
+        log.debug("Creating pending file: fKey={}, filename={}", fKey, filename);
+        
+        // 创建 PENDING 状态的 FileReference（未绑定 contentHash）
+        FileReference reference = FileReference.create(filename, contentType, size, owner);
+        
+        // 使用指定的 fKey（而不是自动生成）
+        reference = new FileReference(
+                fKey,
+                null,  // contentHash 待绑定
+                reference.filename(),
+                reference.contentType(),
+                reference.size(),
+                null,  // eTag 待绑定
+                reference.owner(),
+                reference.access(),
+                reference.audit()
+        );
+        
+        reference = fileReferenceRepository.save(reference);
+        log.info("Pending file created: fKey={}", fKey);
+        
+        return reference;
+    }
+
+    /**
+     * 激活文件（上传完成后）
+     * <p>
+     * 将 PENDING 状态的 FileReference 绑定到物理文件（FileInfo），
+     * 并创建存储副本信息。支持去重：若 contentHash 已存在则复用。
+     *
+     * @param fKey        文件唯一标识
+     * @param contentHash 内容哈希
+     * @param storagePath 存储路径
+     * @param nodeId      存储节点 ID
+     * @return 激活后的文件引用
+     */
+    @Transactional
+    public FileReference activateFile(String fKey, String contentHash, 
+                                      String storagePath, String nodeId) {
+        log.debug("Activating file: fKey={}, contentHash={}", fKey, contentHash);
+        
+        // 1. 获取 PENDING 的 FileReference
+        FileReference reference = fileReferenceRepository.findByFKey(fKey)
+                .orElseThrow(() -> new FileNotFoundException(fKey));
+        
+        if (reference.isBound()) {
+            log.warn("File already activated: fKey={}", fKey);
+            return reference;
+        }
+        
+        // 2. 查找或创建 FileInfo
+        FileInfo fileInfo;
+        Optional<FileInfo> existingInfo = fileInfoRepository.findByContentHash(contentHash);
+        if (existingInfo.isPresent()) {
+            // 去重：已存在相同 contentHash，增加引用计数
+            log.info("File deduplication: contentHash={}", contentHash);
+            fileInfo = deduplicationService.incrementReference(contentHash);
+        } else {
+            // 新文件：创建 FileInfo 并添加存储副本
+            FileInfo newInfo = FileInfo.createPending(
+                    contentHash, 
+                    reference.size(), 
+                    reference.contentType()
+            );
+            StorageCopy copy = StorageCopy.create(nodeId, storagePath);
+            newInfo = newInfo.activate(copy);
+            fileInfo = fileInfoRepository.save(newInfo);
+        }
+        
+        // 3. 绑定 contentHash 到 FileReference
+        reference = reference.bindContent(contentHash, contentHash);  // 使用 contentHash 作为 eTag
+        reference = fileReferenceRepository.save(reference);
+        
+        log.info("File activated: fKey={}, contentHash={}", fKey, contentHash);
+        
+        return reference;
+    }
+
+    /**
      * 根据文件标识获取文件信息
      *
      * @param fileKey 文件唯一标识 (fKey)

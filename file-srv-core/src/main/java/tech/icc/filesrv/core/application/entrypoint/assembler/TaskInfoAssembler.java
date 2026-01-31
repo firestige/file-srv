@@ -1,5 +1,6 @@
 package tech.icc.filesrv.core.application.entrypoint.assembler;
 
+import tech.icc.filesrv.common.vo.audit.OwnerInfo;
 import tech.icc.filesrv.common.vo.file.AccessControl;
 import tech.icc.filesrv.common.vo.file.CustomMetadata;
 import tech.icc.filesrv.common.vo.file.FileTags;
@@ -57,13 +58,21 @@ public final class TaskInfoAssembler {
                 ? CustomMetadata.of(request.getCustomMetadata())
                 : CustomMetadata.empty();
 
+        // 构建 OwnerInfo VO
+        OwnerInfo owner = OwnerInfo.builder()
+                .createdBy(request.getCreatedBy())
+                .creatorName(request.getCreatorName())
+                .build();
+
         // 组装 FileRequest
         return FileRequest.builder()
                 .filename(request.getFilename())
                 .contentType(request.getContentType())
                 .size(request.getSize())
+                .contentHash(request.getContentHash())
                 .eTag(request.getETag())
                 .location(request.getLocation())
+                .owner(owner)
                 .access(accessControl)
                 .fileTags(fileTags)
                 .metadata(metadata)

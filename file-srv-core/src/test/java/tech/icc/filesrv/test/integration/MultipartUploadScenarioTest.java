@@ -18,6 +18,7 @@ import tech.icc.filesrv.common.constants.ResultCode;
 import tech.icc.filesrv.test.config.TestStorageConfig;
 import tech.icc.filesrv.test.support.stub.ObjectStorageServiceStub;
 
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -70,9 +71,12 @@ class MultipartUploadScenarioTest {
         byte[] part2 = "Part 2: This is the second chunk of data.".getBytes();
         byte[] part3 = "Part 3: This is the final chunk of data.".getBytes();
 
+        // 计算文件 hash（模拟客户端行为）
+        String contentHash = calculateSHA256(part1, part2, part3);
+
         // Step 1: 创建上传任务
         String taskId = createTask("large-file.bin", "application/octet-stream", 
-                part1.length + part2.length + part3.length);
+                part1.length + part2.length + part3.length, contentHash);
 
         // Step 2: 上传分片
         List<PartETagInfo> parts = new ArrayList<>();
@@ -90,13 +94,13 @@ class MultipartUploadScenarioTest {
                 .andExpect(jsonPath("$.data.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.data.taskId").value(taskId))
                 .andExpect(jsonPath("$.data.file").exists())
-                .andExpect(jsonPath("$.data.file.fKey").exists())
+                .andExpect(jsonPath("$.data.file.fkey").exists())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
         // 验证文件信息
-        String fKey = JsonPath.read(statusResponse, "$.data.file.fKey");
+        String fKey = JsonPath.read(statusResponse, "$.data.file.fkey");
         assertThat(fKey).isNotBlank();
 
         // Step 5: 验证存储层状态
@@ -111,7 +115,7 @@ class MultipartUploadScenarioTest {
         byte[] part2 = "Part 2 data".getBytes();
 
         String taskId = createTask("upload-in-progress.dat", "application/octet-stream", 
-                part1.length + part2.length + 1000);
+                part1.length + part2.length + 1000, calculateSHA256(part1, part2));
 
         // 上传第一个分片
         uploadPart(taskId, 1, part1);
@@ -135,7 +139,8 @@ class MultipartUploadScenarioTest {
     void shouldAbortUploadTask() throws Exception {
         // Given: 创建任务并上传部分分片
         byte[] part1 = "Part 1 data".getBytes();
-        String taskId = createTask("to-be-aborted.dat", "application/octet-stream", 10000);
+        String taskId = createTask("to-be-aborted.dat", "application/octet-stream", 10000, 
+                calculateSHA256(part1));
         uploadPart(taskId, 1, part1);
 
         // When: 中止任务
@@ -200,7 +205,8 @@ class MultipartUploadScenarioTest {
     @Test
     @DisplayName("应该拒绝分片序号超出范围")
     void shouldRejectInvalidPartNumber() throws Exception {
-        String taskId = createTask("test.dat", "application/octet-stream", 1000);
+        String taskId = createTask("test.dat", "application/octet-stream", 1000, 
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
         byte[] partData = "Some data".getBytes();
 
         // 分片序号为 0（最小为 1）
@@ -222,7 +228,8 @@ class MultipartUploadScenarioTest {
     @DisplayName("应该支持重复上传相同分片（覆盖）")
     void shouldAllowOverwriteSamePart() throws Exception {
         // Given: 创建任务
-        String taskId = createTask("overwrite-test.dat", "application/octet-stream", 1000);
+        String taskId = createTask("overwrite-test.dat", "application/octet-stream", 1000, 
+                "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3");
 
         // 首次上传分片 1
         byte[] part1v1 = "Version 1 of part 1".getBytes();
@@ -251,19 +258,21 @@ class MultipartUploadScenarioTest {
      * @param filename    文件名
      * @param contentType MIME 类型
      * @param fileSize    文件大小
+     * @param contentHash 文件 hash（SHA-256）
      * @return 任务 ID
      */
     @SuppressWarnings("null")
-    private String createTask(String filename, String contentType, long fileSize) throws Exception {
+    private String createTask(String filename, String contentType, long fileSize, String contentHash) throws Exception {
         String requestBody = String.format("""
                 {
                     "filename": "%s",
                     "contentType": "%s",
                     "size": %d,
+                    "contentHash": "%s",
                     "createdBy": "test-user",
                     "creatorName": "Integration Tester"
                 }
-                """, filename, contentType, fileSize);
+                """, filename, contentType, fileSize, contentHash);
 
         String response = mockMvc.perform(post("/api/v1/files/upload_task")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -333,5 +342,21 @@ class MultipartUploadScenarioTest {
      * 分片 ETag 信息（用于测试）
      */
     private record PartETagInfo(int partNumber, String eTag) {
+    }
+
+    /**
+     * 计算文件 SHA-256 hash（模拟客户端计算）
+     */
+    private String calculateSHA256(byte[]... parts) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        for (byte[] part : parts) {
+            digest.update(part);
+        }
+        byte[] hashBytes = digest.digest();
+        StringBuilder sb = new StringBuilder();
+        for (byte b : hashBytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 }

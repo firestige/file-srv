@@ -2,6 +2,7 @@ package tech.icc.filesrv.common.vo.task;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import lombok.Builder;
+import tech.icc.filesrv.common.vo.audit.OwnerInfo;
 import tech.icc.filesrv.common.vo.file.AccessControl;
 import tech.icc.filesrv.common.vo.file.CustomMetadata;
 import tech.icc.filesrv.common.vo.file.FileTags;
@@ -23,8 +24,10 @@ public record FileRequest(
         String filename,
         String contentType,
         Long size,
+        String contentHash,
         String eTag,
         String location,
+        @JsonUnwrapped OwnerInfo owner,
         @JsonUnwrapped AccessControl access,
         @JsonUnwrapped FileTags fileTags,
         @JsonUnwrapped CustomMetadata metadata

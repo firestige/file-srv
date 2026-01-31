@@ -28,6 +28,7 @@ public class TaskAggregate {
     private String sessionId;
     private String storagePath;
 
+    private String contentHash;
     private String hash;
     private Long totalSize;
     private String contentType;
@@ -77,13 +78,16 @@ public class TaskAggregate {
      * 创建新任务
      *
      * @param fKey        用户文件标识
+     * @param contentHash 文件内容 Hash（客户端计算）
      * @param cfgs        callback 列表
      * @param expireAfter 过期时间
      * @return 新任务
      */
-    public static TaskAggregate create(String fKey, List<CallbackConfig> cfgs, Duration expireAfter) {
+    public static TaskAggregate create(String fKey, String contentHash, List<CallbackConfig> cfgs, Duration expireAfter) {
         String taskId = UUID.randomUUID().toString();
-        return new TaskAggregate(taskId, fKey, cfgs, expireAfter);
+        TaskAggregate task = new TaskAggregate(taskId, fKey, cfgs, expireAfter);
+        task.contentHash = contentHash;
+        return task;
     }
 
     // ==================== 领域行为 ====================
@@ -273,6 +277,10 @@ public class TaskAggregate {
 
     public String getSessionId() {
         return sessionId;
+    }
+
+    public String getContentHash() {
+        return contentHash;
     }
 
     public String getStoragePath() {
