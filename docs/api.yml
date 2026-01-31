@@ -28,15 +28,19 @@ paths:
           description: 文件关联的外键
       responses:
         '200':
-          description: 下载公开文件成功
+          description: 下载公开文件成功（文件元数据通过响应头返回）
           headers:
             Content-Type:
-              description: 实际文件的 MIME 类型
+              description: 实际文件的 MIME 类型（来自文件元数据）
               schema:
                 type: string
                 format: mime
             Content-Disposition:
-              description: 建议的文件下载名称
+              description: 建议的文件显示名称（inline模式）
+              schema:
+                type: string
+            Cache-Control:
+              description: 缓存控制
               schema:
                 type: string
           content:
@@ -45,7 +49,7 @@ paths:
                 type: string
                 format: binary
         '403':
-          description: 文件未公开，禁止访问
+          description: 文件非公开，拒绝访问
           content:
             application/json:
               schema:
@@ -54,7 +58,7 @@ paths:
                 notPublic:
                   value:
                     code: 403
-                    msg: 该文件未公开，无法访问
+                    msg: 文件非公开，拒绝访问
         '404':
           $ref: '#/components/responses/NotFound'
   /files/{fkey}:
@@ -157,9 +161,9 @@ paths:
           schema:
             type: integer
             minimum: 60
-            maximum: 86400
+            maximum: 604800
             default: 3600
-          description: 预签名 URL 的有效期，单位为秒，默认值为 3600 秒(1 小时)
+          description: 预签名 URL 的有效期，单位为秒，默认值为 3600 秒(1 小时)，最大为 604800 秒(7天)
       responses:
         '200':
           description: 获取文件预签名下载 URL 成功
@@ -191,7 +195,7 @@ paths:
           schema:
             type: integer
             minimum: 1
-            maximum: 1000
+            maximum: 100
             default: 20
           description: 每页大小
         - name: sort
@@ -452,7 +456,7 @@ paths:
                         description: 分片的 eTag 值
       responses:
         '202':
-          description: 文件上传任务已接受，callback 将异步处理
+          description: 文件上传任务完成请求已接受，callback 将异步执行
           content:
             application/json:
               schema:
@@ -595,7 +599,7 @@ components:
           description: 文件关联的外键
         public:
           type: boolean
-          description: 文件是否公开, 公开的文件可以使用形如http://{host}/static/api/v1/files/{fkey}的链接访问
+          description: 文件是否公开, 公开的文件可以使用形如http://{host}/file/api/v1/static/{fkey}的链接访问
         customMetadata:
           type: object
           description: 文件的自定义元数据（键值均为字符串）
