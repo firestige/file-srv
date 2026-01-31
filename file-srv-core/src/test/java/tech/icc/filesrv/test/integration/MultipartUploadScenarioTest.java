@@ -89,14 +89,14 @@ class MultipartUploadScenarioTest {
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.data.taskId").value(taskId))
-                .andExpect(jsonPath("$.data.fKey").exists())
                 .andExpect(jsonPath("$.data.file").exists())
+                .andExpect(jsonPath("$.data.file.fKey").exists())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
         // 验证文件信息
-        String fKey = JsonPath.read(statusResponse, "$.data.summary.fKey");
+        String fKey = JsonPath.read(statusResponse, "$.data.file.fKey");
         assertThat(fKey).isNotBlank();
 
         // Step 5: 验证存储层状态
