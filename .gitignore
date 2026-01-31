@@ -41,5 +41,14 @@ package-lock.json
 node_modules/
 
 ### Mac OS ###
-.DS_Store.flattened-pom.xml
+.DS_Store
+
+### Local Configuration ###
+# 本地构建脚本（包含本地路径，不应上传）
+*.local.ps1
+*.local.sh
+
+# 本地环境配置
+.env.local
+
 .flattened-pom.xml

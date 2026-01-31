@@ -1,5 +1,10 @@
 package tech.icc.filesrv.core.application.entrypoint.assembler;
 
+import tech.icc.filesrv.common.vo.file.AccessControl;
+import tech.icc.filesrv.common.vo.file.CustomMetadata;
+import tech.icc.filesrv.common.vo.file.FileTags;
+import tech.icc.filesrv.common.vo.task.FileRequest;
+import tech.icc.filesrv.core.application.entrypoint.model.CreateTaskRequest;
 import tech.icc.filesrv.core.application.entrypoint.model.PartETag;
 import tech.icc.filesrv.core.application.entrypoint.model.TaskResponse;
 import tech.icc.filesrv.core.application.service.dto.PartETagDto;
@@ -10,12 +15,59 @@ import java.util.List;
 /**
  * 任务信息 Assembler
  * <p>
- * 负责 API 层 DTO 与 应用层 DTO 之间的转换。
+ * 负责 API 层 DTO 与应用层 DTO 之间的转换。
+ * <ul>
+ *   <li>Request → VO：入参转换，将扁平的 API 请求转换为嵌套的领域 VO</li>
+ *   <li>Dto → Response：出参转换，Service 返回后包装为 API 响应</li>
+ * </ul>
  */
 public final class TaskInfoAssembler {
 
     private TaskInfoAssembler() {
         // 工具类，禁止实例化
+    }
+
+    // ==================== Request → VO ====================
+
+    /**
+     * 将 CreateTaskRequest 转换为 FileRequest VO
+     * <p>
+     * 从扁平的 API 请求模型构建嵌套的领域值对象，保持应用层 VO 复用性。
+     *
+     * @param request API 层创建任务请求
+     * @return 应用层 FileRequest VO
+     */
+    public static FileRequest toFileRequest(CreateTaskRequest request) {
+        if (request == null) {
+            return null;
+        }
+
+        // 构建 AccessControl VO
+        AccessControl accessControl = new AccessControl(
+                request.getPublic() != null && request.getPublic()
+        );
+
+        // 构建 FileTags VO
+        FileTags fileTags = request.getTags() != null
+                ? FileTags.of(request.getTags())
+                : FileTags.empty();
+
+        // 构建 CustomMetadata VO
+        CustomMetadata metadata = request.getCustomMetadata() != null
+                ? CustomMetadata.of(request.getCustomMetadata())
+                : CustomMetadata.empty();
+
+        // 组装 FileRequest
+        return FileRequest.builder()
+                .filename(request.getFilename())
+                .contentType(request.getContentType())
+                .size(request.getSize())
+                .eTag(request.getETag())
+                .location(request.getLocation())
+                .access(accessControl)
+                .fileTags(fileTags)
+                .metadata(metadata)
+                .build();
     }
 
     // ==================== PartETag 转换 ====================

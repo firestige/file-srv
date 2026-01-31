@@ -98,6 +98,13 @@ public class TaskAggregate {
     }
 
     /**
+     * 更新 session ID（用于断点续传降级时重新初始化）
+     */
+    public void updateSessionId(String newSessionId) {
+        this.sessionId = newSessionId;
+    }
+
+    /**
      * 记录分片
      */
     public void recordPart(PartInfo part) {

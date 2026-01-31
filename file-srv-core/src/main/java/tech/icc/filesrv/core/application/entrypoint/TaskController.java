@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import tech.icc.filesrv.common.constants.SystemConstant;
 import tech.icc.filesrv.common.context.Result;
+import tech.icc.filesrv.common.vo.task.CallbackConfig;
+import tech.icc.filesrv.common.vo.task.FileRequest;
 import tech.icc.filesrv.core.application.entrypoint.assembler.TaskInfoAssembler;
 import tech.icc.filesrv.core.application.entrypoint.model.CreateTaskRequest;
 import tech.icc.filesrv.core.application.entrypoint.model.PartETag;
@@ -30,7 +32,9 @@ import tech.icc.filesrv.core.application.service.dto.TaskInfoDto;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 任务管理控制器
@@ -74,9 +78,13 @@ public class TaskController {
             @Valid @RequestBody CreateTaskRequest request) {
 
         log.info("[CreateTask] Start, filename={}, size={}, contentType={}",
-                request.file().filename(), request.file().size(), request.file().contentType());
+                request.getFilename(), request.getSize(), request.getContentType());
 
-        TaskInfoDto.Pending dto = service.createTask(request.file(), request.callbacks());
+        // 通过 assembler 转换扁平请求为领域 VO
+        FileRequest fileRequest = TaskInfoAssembler.toFileRequest(request);
+        List<CallbackConfig> cfgs = Optional.ofNullable(request.getCallbacks()).orElse(Collections.emptyList());
+
+        TaskInfoDto.Pending dto = service.createTask(fileRequest, cfgs);
         TaskResponse.Pending response = (TaskResponse.Pending) TaskInfoAssembler.toResponse(dto);
         String location = SystemConstant.TASKS_PATH + "/" + response.summary().taskId();
 
@@ -114,7 +122,7 @@ public class TaskController {
 
         log.info("[UploadPart] Start, taskId={}, partNumber={}", taskId, partNumber);
 
-        PartETagDto dto = service.uploadPart(taskId, partNumber, request.getInputStream());
+        PartETagDto dto = service.uploadPart(taskId, partNumber, request.getInputStream(), request.getContentLengthLong());
         PartETag response = TaskInfoAssembler.toResponse(dto);
 
         log.info("[UploadPart] Success, taskId={}, partNumber={}, eTag={}",

@@ -134,9 +134,19 @@ public class TaskService {
     public PartETagDto uploadPart(String taskId, int partNumber, InputStream content, long size) {
         TaskAggregate task = getTaskOrThrow(taskId);
 
-        // 恢复上传会话
+        // 恢复上传会话（支持降级：如果不支持断点续传，则重新初始化）
         String storagePath = buildStoragePath(task.getFKey(), task.getContentType());
-        UploadSession session = storageAdapter.resumeUpload(storagePath, task.getSessionId());
+        UploadSession session;
+        try {
+            session = storageAdapter.resumeUpload(storagePath, task.getSessionId());
+        } catch (UnsupportedOperationException e) {
+            // 降级：存储层不支持断点续传，重新初始化上传会话
+            log.debug("Resume upload not supported, initiating new session: taskId={}", taskId);
+            session = storageAdapter.beginUpload(storagePath, task.getContentType());
+            // 更新任务的 sessionId
+            task.updateSessionId(session.getSessionId());
+            taskRepository.save(task);
+        }
 
         try {
             // 上传分片
@@ -154,15 +164,6 @@ public class TaskService {
         } finally {
             session.close();
         }
-    }
-
-    /**
-     * 上传分片（简化版本，从方法参数获取）
-     */
-    @Transactional
-    public PartETagDto uploadPart(String taskId, int partNumber, InputStream content) {
-        // 需要调用方提供 size，这里假设流可重复读或已缓冲
-        throw new UnsupportedOperationException("Please use uploadPart(taskId, partNumber, content, size)");
     }
 
     /**
@@ -187,10 +188,21 @@ public class TaskService {
                 .map(p -> PartInfo.of(p.partNumber(), p.eTag(), 0))
                 .toList();
 
-        // 恢复会话并完成上传
+        // 恢复会话并完成上传（支持降级：如果不支持断点续传，则重新初始化）
         String storagePath = buildStoragePath(task.getFKey(), contentType);
+        UploadSession session;
+        try {
+            session = storageAdapter.resumeUpload(storagePath, task.getSessionId());
+        } catch (UnsupportedOperationException e) {
+            // 降级：存储层不支持断点续传，重新初始化上传会话
+            log.debug("Resume upload not supported for complete, initiating new session: taskId={}", taskId);
+            session = storageAdapter.beginUpload(storagePath, contentType);
+            // 更新任务的 sessionId
+            task.updateSessionId(session.getSessionId());
+            taskRepository.save(task);
+        }
 
-        try (UploadSession session = storageAdapter.resumeUpload(storagePath, task.getSessionId())) {
+        try {
             // 转换为 SPI 层的 PartETagInfo
             List<PartETagInfo> partEtags = partInfos.stream()
                     .map(p -> PartETagInfo.of(p.partNumber(), p.etag()))
@@ -221,6 +233,8 @@ public class TaskService {
             updateTaskCache(task);
             publishFailedEvent(task);
             throw e;
+        } finally {
+            session.close();
         }
     }
 
@@ -251,7 +265,14 @@ public class TaskService {
         if (task.getSessionId() != null) {
             try {
                 String storagePath = buildStoragePath(task.getFKey(), task.getContentType());
-                UploadSession session = storageAdapter.resumeUpload(storagePath, task.getSessionId());
+                UploadSession session;
+                try {
+                    session = storageAdapter.resumeUpload(storagePath, task.getSessionId());
+                } catch (UnsupportedOperationException e) {
+                    // 降级：存储层不支持断点续传，无需中止会话
+                    log.debug("Resume upload not supported for abort, skipping session abort: taskId={}", taskId);
+                    return;
+                }
                 session.abort();
                 session.close();
             } catch (Exception e) {

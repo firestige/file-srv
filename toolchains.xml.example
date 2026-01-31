@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Maven Toolchains 配置文件
+  
+  使用说明：
+  1. 复制此文件到用户目录：
+     Windows: %USERPROFILE%\.m2\toolchains.xml  (例如: C:\Users\你的用户名\.m2\toolchains.xml)
+     macOS/Linux: ~/.m2/toolchains.xml
+  
+  2. 修改 <jdkHome> 为你本地的 JDK 17 安装路径
+  
+  3. 保存后，Maven 会自动使用配置的 JDK
+     - 项目已配置 maven-toolchains-plugin，会自动查找并使用 JDK 17
+     - 你可以在不同设备间同步此配置文件（例如通过云同步、git 私有仓库等）
+  
+  参考文档：
+  - https://maven.apache.org/guides/mini/guide-using-toolchains.html
+  - https://maven.apache.org/plugins/maven-toolchains-plugin/
+-->
+<toolchains xmlns="http://maven.apache.org/TOOLCHAINS/1.1.0"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://maven.apache.org/TOOLCHAINS/1.1.0 
+                                http://maven.apache.org/xsd/toolchains-1.1.0.xsd">
+  
+  <!-- JDK 17 配置（本项目需要） -->
+  <toolchain>
+    <type>jdk</type>
+    <provides>
+      <version>17</version>
+      <vendor>azul</vendor>
+    </provides>
+    <configuration>
+      <!-- ⚠️ 修改此路径为你本地的 JDK 17 路径 -->
+      <!-- Windows 示例 -->
+      <jdkHome>C:\Users\YOUR_USERNAME\.jdks\azul-17.0.17</jdkHome>
+      
+      <!-- macOS 示例 -->
+      <!-- <jdkHome>/Users/YOUR_USERNAME/.jdks/azul-17.0.17</jdkHome> -->
+      
+      <!-- Linux 示例 -->
+      <!-- <jdkHome>/home/YOUR_USERNAME/.jdks/azul-17.0.17</jdkHome> -->
+    </configuration>
+  </toolchain>
+  
+  <!-- 可选：如果有其他 JDK 版本，继续添加 -->
+  <!--
+  <toolchain>
+    <type>jdk</type>
+    <provides>
+      <version>21</version>
+      <vendor>temurin</vendor>
+    </provides>
+    <configuration>
+      <jdkHome>C:\Users\YOUR_USERNAME\.jdks\temurin-21</jdkHome>
+    </configuration>
+  </toolchain>
+  -->
+  
+</toolchains>
