@@ -89,6 +89,19 @@ public class ObjectStorageServiceStub implements StorageAdapter {
         return session;
     }
     
+    @Override
+    public UploadSession resumeUpload(String path, String sessionId) {
+        InMemoryUploadSession session = sessions.get(sessionId);
+        if (session == null) {
+            throw new IllegalStateException("Session not found or expired: " + sessionId);
+        }
+        if (!session.getPath().equals(path)) {
+            throw new IllegalArgumentException(
+                "Path mismatch: session path=" + session.getPath() + ", requested=" + path);
+        }
+        return session;
+    }
+    
     /**
      * 清理所有数据（测试用）
      */
@@ -119,11 +132,13 @@ public class ObjectStorageServiceStub implements StorageAdapter {
     /**
      * 计算简单的 ETag（使用内容 hashCode）
      * <p>
-     * 生产环境应该用 MD5，但测试环境为了性能使用简化版本
+     * 生产环境应该用 MD5，但测试环境为了性能使用简化版本。
+     * <p>
+     * <b>注意：</b>返回纯 ETag 值，不包含引号（与 HCS Adapter 的 normalizeETag 行为一致）。
      */
     private String calculateETag(byte[] data) {
         int hash = java.util.Arrays.hashCode(data);
-        return String.format("\"%08x\"", hash);
+        return String.format("%08x", hash);
     }
     
     // ==================== 内部类：分片上传会话 ====================
@@ -170,11 +185,20 @@ public class ObjectStorageServiceStub implements StorageAdapter {
         public String complete(List<PartETagInfo> partInfos) {
             ensureNotClosed();
             
-            // 验证所有分片都已上传
+            // 验证所有分片都已上传且 ETag 匹配
             for (PartETagInfo info : partInfos) {
-                if (!parts.containsKey(info.partNumber())) {
+                byte[] partData = parts.get(info.partNumber());
+                if (partData == null) {
                     throw new IllegalStateException(
                         "Part " + info.partNumber() + " not uploaded");
+                }
+                
+                // 验证 ETag（模拟真实对象存储的行为）
+                String actualETag = calculateETag(partData);
+                if (!actualETag.equals(info.etag())) {
+                    throw new IllegalStateException(
+                        String.format("Part %d ETag mismatch: expected %s, got %s",
+                            info.partNumber(), info.etag(), actualETag));
                 }
             }
             
@@ -189,7 +213,7 @@ public class ObjectStorageServiceStub implements StorageAdapter {
                 byte[] finalData = merged.toByteArray();
                 storage.put(path, finalData);
                 
-                // 清理会话
+                // 清理会话数据
                 sessions.remove(sessionId);
                 closed = true;
                 
@@ -201,7 +225,9 @@ public class ObjectStorageServiceStub implements StorageAdapter {
         
         @Override
         public void abort() {
-            ensureNotClosed();
+            if (closed) {
+                return;  // 幂等：已终止的会话不重复处理
+            }
             parts.clear();
             sessions.remove(sessionId);
             closed = true;
@@ -209,9 +235,8 @@ public class ObjectStorageServiceStub implements StorageAdapter {
         
         @Override
         public void close() {
-            if (!closed) {
-                abort();
-            }
+            // 不清理会话，保持会话存活以支持 resumeUpload
+            // 只有 complete() 或 abort() 才真正清理会话数据
         }
         
         private void ensureNotClosed() {
