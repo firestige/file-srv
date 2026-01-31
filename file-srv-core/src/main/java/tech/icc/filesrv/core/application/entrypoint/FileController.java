@@ -79,7 +79,7 @@ public class FileController {
                 .map(dto -> buildDownloadResponse(fileKey, dto))
                 .orElseThrow(() -> {
                     log.warn("[StaticResource] File not found, fileKey={}", fileKey);
-                    return FileNotFoundException.withoutStack("文件不存在: " + fileKey);
+                    return new FileNotFoundException(fileKey);
                 });
     }
 
@@ -124,7 +124,7 @@ public class FileController {
         FileInfoDto dto = service.getFileInfo(fileKey)
                 .orElseThrow(() -> {
                     log.warn("[GetMetadata] File not found, fileKey={}", fileKey);
-                    return FileNotFoundException.withoutStack("文件不存在: " + fileKey);
+                    return new FileNotFoundException(fileKey);
                 });
         
         FileMeta response = FileInfoAssembler.toFileMeta(dto);
@@ -189,7 +189,7 @@ public class FileController {
         }
         
         // 使用配置的默认值或校验范围
-        int expiry = expiresIn != null ? expiresIn : config.getDefaultPresignExpirySeconds();
+        long expiry = expiresIn != null ? expiresIn : config.getDefaultPresignExpirySeconds();
         if (expiry < config.getMinPresignExpirySeconds() || expiry > config.getMaxPresignExpirySeconds()) {
             throw new IllegalArgumentException(
                 String.format("有效期必须在 %d-%d 秒之间",

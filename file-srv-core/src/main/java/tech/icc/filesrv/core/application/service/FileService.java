@@ -96,8 +96,7 @@ public class FileService {
         // 0. 文件大小校验
         if (file.getSize() > MAX_FILE_SIZE) {
             counter("file.upload.rejected", "reason", "size_limit").increment();
-            throw PayloadTooLargeException.withoutStack(
-                    "File size exceeds limit: " + file.getSize() + " > " + MAX_FILE_SIZE);
+            throw new PayloadTooLargeException(file.getSize(), MAX_FILE_SIZE);
         }
 
         // 1. 提取元数据
@@ -240,7 +239,7 @@ public class FileService {
         log.debug("Deleting file: fKey={}", fileKey);
 
         FileReference reference = fileReferenceRepository.findByFKey(fileKey)
-                .orElseThrow(() -> FileNotFoundException.withoutStack("File not found: " + fileKey));
+                .orElseThrow(() -> new FileNotFoundException(fileKey));
 
         // 减少引用计数
         if (reference.isBound()) {
@@ -312,10 +311,10 @@ public class FileService {
      */
     private StorageAccess resolveStorageAccess(String fileKey) {
         FileReference reference = fileReferenceRepository.findByFKey(fileKey)
-                .orElseThrow(() -> FileNotFoundException.withoutStack("File not found: " + fileKey));
+                .orElseThrow(() -> new FileNotFoundException(fileKey));
 
         if (!reference.isBound()) {
-            throw FileNotReadyException.withoutStack("File not ready: " + fileKey);
+            throw new FileNotReadyException(fileKey);
         }
 
         FileInfo fileInfo = fileInfoRepository.findByContentHash(reference.contentHash())

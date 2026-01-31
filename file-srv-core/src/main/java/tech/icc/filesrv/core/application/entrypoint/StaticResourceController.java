@@ -73,7 +73,7 @@ public class StaticResourceController {
         FileInfoDto dto = service.getFileInfo(fileKey)
                 .orElseThrow(() -> {
                     log.warn("[StaticResource] File not found, fileKey={}", fileKey);
-                    return FileNotFoundException.withoutStack("文件不存在: " + fileKey);
+                    return new FileNotFoundException(fileKey);
                 });
 
         // 检查是否为公开文件
@@ -83,7 +83,7 @@ public class StaticResourceController {
 
         if (!isPublic) {
             log.warn("[StaticResource] Access denied, file is not public, fileKey={}", fileKey);
-            throw AccessDeniedException.withoutStack("文件非公开，拒绝访问: " + fileKey);
+            throw new AccessDeniedException(fileKey);
         }
 
         return buildDownloadResponse(fileKey, dto);

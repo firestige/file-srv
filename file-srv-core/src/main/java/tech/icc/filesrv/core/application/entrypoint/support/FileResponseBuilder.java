@@ -86,7 +86,11 @@ public class FileResponseBuilder {
      * 创建上传成功响应构建器
      */
     public static FileResponseBuilder forUpload() {
-        return new FileResponseBuilder().status(HttpStatus.CREATED);
+        FileResponseBuilder builder = new FileResponseBuilder()
+                .status(HttpStatus.CREATED);
+        // 设置 JSON Content-Type
+        builder.headers.setContentType(MediaType.APPLICATION_JSON);
+        return builder;
     }
 
     // ==================== 基础配置 ====================

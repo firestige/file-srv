@@ -2,7 +2,9 @@ package tech.icc.filesrv.core.infra.file.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Service;
 import tech.icc.filesrv.core.infra.file.LocalFileManager;
 import tech.icc.filesrv.common.spi.storage.StorageAdapter;
 
@@ -17,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 默认本地文件管理器实现
  */
+@Service
 public class DefaultLocalFileManager implements LocalFileManager {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultLocalFileManager.class);
@@ -25,7 +28,8 @@ public class DefaultLocalFileManager implements LocalFileManager {
     private final StorageAdapter storageAdapter;
     private final Map<String, Path> cachedFiles = new ConcurrentHashMap<>();
 
-    public DefaultLocalFileManager(Path tempBaseDir, StorageAdapter storageAdapter) {
+    // todo 这里的 Path 是参数，我们要在 config 中追加
+    public DefaultLocalFileManager(@Qualifier("tempBaseDir") Path tempBaseDir, StorageAdapter storageAdapter) {
         this.tempBaseDir = tempBaseDir;
         this.storageAdapter = storageAdapter;
         

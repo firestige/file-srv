@@ -1,4 +1,4 @@
-package tech.icc.filesrv.core;
+package tech.icc.filesrv;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

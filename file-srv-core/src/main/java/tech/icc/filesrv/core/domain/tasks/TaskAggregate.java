@@ -46,8 +46,8 @@ public class TaskAggregate {
 
     // ==================== 构造 ====================
 
-    protected TaskAggregate() {
-        // for JPA
+    public TaskAggregate() {
+        // for JPA - public for entity mapping
     }
 
     private TaskAggregate(String taskId, String fKey, List<CallbackConfig> cfgs, Duration expireAfter) {
@@ -322,75 +322,75 @@ public class TaskAggregate {
 
     // ==================== Setters (for JPA) ====================
 
-    protected void setTaskId(String taskId) {
+    public void setTaskId(String taskId) {
         this.taskId = taskId;
     }
 
-    protected void setFKey(String fKey) {
+    public void setFKey(String fKey) {
         this.fKey = fKey;
     }
 
-    protected void setStatus(TaskStatus status) {
+    public void setStatus(TaskStatus status) {
         this.status = status;
     }
 
-    protected void setNodeId(String nodeId) {
+    public void setNodeId(String nodeId) {
         this.nodeId = nodeId;
     }
 
-    protected void setSessionId(String sessionId) {
+    public void setSessionId(String sessionId) {
         this.sessionId = sessionId;
     }
 
-    protected void setStoragePath(String storagePath) {
+    public void setStoragePath(String storagePath) {
         this.storagePath = storagePath;
     }
 
-    protected void setHash(String hash) {
+    public void setHash(String hash) {
         this.hash = hash;
     }
 
-    protected void setTotalSize(Long totalSize) {
+    public void setTotalSize(Long totalSize) {
         this.totalSize = totalSize;
     }
 
-    protected void setContentType(String contentType) {
+    public void setContentType(String contentType) {
         this.contentType = contentType;
     }
 
-    protected void setFilename(String filename) {
+    public void setFilename(String filename) {
         this.filename = filename;
     }
 
-    protected void setParts(List<PartInfo> parts) {
+    public void setParts(List<PartInfo> parts) {
         this.parts = parts;
     }
 
-    protected void setCallbacks(List<CallbackConfig> callbacks) {
+    public void setCallbacks(List<CallbackConfig> callbacks) {
         this.callbacks = callbacks;
     }
 
-    protected void setCurrentCallbackIndex(int currentCallbackIndex) {
+    public void setCurrentCallbackIndex(int currentCallbackIndex) {
         this.currentCallbackIndex = currentCallbackIndex;
     }
 
-    protected void setContext(TaskContext context) {
+    public void setContext(TaskContext context) {
         this.context = context;
     }
 
-    protected void setFailureReason(String failureReason) {
+    public void setFailureReason(String failureReason) {
         this.failureReason = failureReason;
     }
 
-    protected void setCreatedAt(Instant createdAt) {
+    public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
 
-    protected void setExpiresAt(Instant expiresAt) {
+    public void setExpiresAt(Instant expiresAt) {
         this.expiresAt = expiresAt;
     }
 
-    protected void setCompletedAt(Instant completedAt) {
+    public void setCompletedAt(Instant completedAt) {
         this.completedAt = completedAt;
     }
 }

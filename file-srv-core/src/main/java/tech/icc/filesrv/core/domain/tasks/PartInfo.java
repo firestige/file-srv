@@ -1,7 +1,5 @@
 package tech.icc.filesrv.core.domain.tasks;
 
-import jakarta.persistence.Embeddable;
-
 /**
  * 分片信息值对象
  *
@@ -9,7 +7,6 @@ import jakarta.persistence.Embeddable;
  * @param etag       存储层返回的 ETag
  * @param size       分片大小 (bytes)
  */
-@Embeddable
 public record PartInfo(
         int partNumber,
         String etag,

@@ -64,9 +64,9 @@ class FileControllerTest {
 
     @Test
     void shouldUseDefaultExpiryWhenNotProvided() {
-        when(config.getDefaultPresignExpirySeconds()).thenReturn(3600);
-        when(config.getMinPresignExpirySeconds()).thenReturn(60);
-        when(config.getMaxPresignExpirySeconds()).thenReturn(604800);
+        when(config.getDefaultPresignExpirySeconds()).thenReturn(3600L);
+        when(config.getMinPresignExpirySeconds()).thenReturn(60L);
+        when(config.getMaxPresignExpirySeconds()).thenReturn(604800L);
         when(service.getPresignedUrl(anyString(), any())).thenReturn("url");
 
         controller.getPresignedUrl("test-key", null);

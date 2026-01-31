@@ -16,13 +16,13 @@ public class FileControllerConfig {
     private final int maxFileKeyLength;
 
     /** 预签名URL默认有效期（秒） */
-    private final int defaultPresignExpirySeconds;
+    private final long defaultPresignExpirySeconds;
 
     /** 预签名URL最小有效期（秒） */
-    private final int minPresignExpirySeconds;
+    private final long minPresignExpirySeconds;
 
     /** 预签名URL最大有效期（秒） */
-    private final int maxPresignExpirySeconds;
+    private final long maxPresignExpirySeconds;
 
     /** 分页默认大小 */
     private final int defaultPageSize;
