@@ -2,6 +2,7 @@ package tech.icc.filesrv.core.domain.tasks;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import tech.icc.filesrv.common.vo.task.TaskStatus;
 
 import java.time.Instant;
 import java.util.List;

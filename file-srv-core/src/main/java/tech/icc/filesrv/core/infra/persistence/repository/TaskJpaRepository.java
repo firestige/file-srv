@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import tech.icc.filesrv.core.domain.tasks.TaskStatus;
+import tech.icc.filesrv.common.vo.task.TaskStatus;
 import tech.icc.filesrv.core.infra.persistence.entity.TaskEntity;
 
 import java.time.Instant;

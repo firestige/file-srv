@@ -1,4 +1,4 @@
-package tech.icc.filesrv.core.domain.tasks;
+package tech.icc.filesrv.common.vo.task;
 
 /**
  * 任务状态枚举

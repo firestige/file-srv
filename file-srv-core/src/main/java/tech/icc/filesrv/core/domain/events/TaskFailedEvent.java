@@ -1,6 +1,6 @@
 package tech.icc.filesrv.core.domain.events;
 
-import tech.icc.filesrv.core.domain.tasks.TaskStatus;
+import tech.icc.filesrv.common.vo.task.TaskStatus;
 
 import java.time.Instant;
 

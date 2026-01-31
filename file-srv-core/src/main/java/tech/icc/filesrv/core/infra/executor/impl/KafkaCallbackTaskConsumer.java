@@ -7,7 +7,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
 import tech.icc.filesrv.core.domain.tasks.TaskRepository;
-import tech.icc.filesrv.core.domain.tasks.TaskStatus;
+import tech.icc.filesrv.common.vo.task.TaskStatus;
 import tech.icc.filesrv.core.infra.executor.CallbackChainRunner;
 import tech.icc.filesrv.core.infra.executor.DeadLetterPublisher;
 import tech.icc.filesrv.core.infra.executor.ExecutorProperties;

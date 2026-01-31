@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
 import tech.icc.filesrv.core.domain.tasks.TaskRepository;
-import tech.icc.filesrv.core.domain.tasks.TaskStatus;
+import tech.icc.filesrv.common.vo.task.TaskStatus;
 import tech.icc.filesrv.core.infra.persistence.entity.TaskEntity;
 import tech.icc.filesrv.core.infra.persistence.repository.TaskJpaRepository;
 

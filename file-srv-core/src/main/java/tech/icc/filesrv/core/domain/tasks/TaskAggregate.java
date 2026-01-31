@@ -2,6 +2,7 @@ package tech.icc.filesrv.core.domain.tasks;
 
 import tech.icc.filesrv.common.context.TaskContext;
 import tech.icc.filesrv.common.vo.task.CallbackConfig;
+import tech.icc.filesrv.common.vo.task.TaskStatus;
 
 import java.time.Duration;
 import java.time.Instant;

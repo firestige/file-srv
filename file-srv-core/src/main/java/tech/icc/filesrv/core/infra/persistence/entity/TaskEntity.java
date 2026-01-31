@@ -8,7 +8,7 @@ import tech.icc.filesrv.common.context.TaskContext;
 import tech.icc.filesrv.common.vo.task.CallbackConfig;
 import tech.icc.filesrv.core.domain.tasks.PartInfo;
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
-import tech.icc.filesrv.core.domain.tasks.TaskStatus;
+import tech.icc.filesrv.common.vo.task.TaskStatus;
 
 import java.time.Instant;
 import java.util.ArrayList;

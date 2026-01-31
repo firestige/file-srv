@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import tech.icc.filesrv.common.vo.task.CallbackConfig;
+import tech.icc.filesrv.common.vo.task.TaskStatus;
 
 import java.time.Duration;
 import java.time.Instant;

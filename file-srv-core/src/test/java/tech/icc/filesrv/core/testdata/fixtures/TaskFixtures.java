@@ -1,7 +1,7 @@
 package tech.icc.filesrv.core.testdata.fixtures;
 
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
-import tech.icc.filesrv.core.domain.tasks.TaskStatus;
+import tech.icc.filesrv.common.vo.task.TaskStatus;
 
 /**
  * 任务场景预设
