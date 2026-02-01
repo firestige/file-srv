@@ -106,6 +106,13 @@ public class TaskEntity {
     private Instant completedAt;
 
     /**
+     * 乐观锁版本号
+     */
+    @Version
+    @Column(name = "version")
+    private Long version;
+
+    /**
      * 从领域对象转换
      */
     public static TaskEntity fromDomain(TaskAggregate task) {

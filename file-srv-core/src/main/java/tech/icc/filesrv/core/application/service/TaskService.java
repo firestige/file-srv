@@ -1,9 +1,12 @@
 package tech.icc.filesrv.core.application.service;
 
+import jakarta.persistence.OptimisticLockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tech.icc.filesrv.common.exception.validation.InvalidTaskIdException;
@@ -205,8 +208,11 @@ public class TaskService {
      * @param filename    文件名
      * @return 完成后的任务信息
      */
-    @Transactional
-    public TaskInfoDto completeUpload(String taskId, List<PartETagDto> parts,
+    @Transactional    @Retryable(
+            retryFor = OptimisticLockException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 100, multiplier = 2.0)
+    )    public TaskInfoDto completeUpload(String taskId, List<PartETagDto> parts,
                                       String hash, Long totalSize,
                                       String contentType, String filename) {
         TaskAggregate task = getTaskOrThrow(taskId);
@@ -278,6 +284,11 @@ public class TaskService {
      * 完成上传（简化版本）
      */
     @Transactional
+    @Retryable(
+            retryFor = OptimisticLockException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 100, multiplier = 2.0)
+    )
     public void completeUpload(String taskId, List<PartETagDto> parts) {
         TaskAggregate task = getTaskOrThrow(taskId);
         // 使用已记录的分片信息
@@ -295,6 +306,11 @@ public class TaskService {
      * @param reason 中止原因（可选）
      */
     @Transactional
+    @Retryable(
+            retryFor = OptimisticLockException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 100, multiplier = 2.0)
+    )
     public void abortUpload(String taskId, String reason) {
         TaskAggregate task = getTaskOrThrow(taskId);
 

@@ -1,0 +1,77 @@
+# File Service - Common Configuration
+# 通用配置文件（所有环境共享）
+
+spring:
+  application:
+    name: file-srv
+  
+  # JPA 通用配置
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        generate_statistics: false
+
+# 文件服务配置
+file-srv:
+  # 存储配置
+  storage:
+    provider: local  # local, s3, hcs
+    max-file-size: 1073741824  # 1GB (默认)
+    allowed-extensions: "*"  # 允许所有扩展名
+  
+  # 去重配置
+  deduplication:
+    enabled: true
+    algorithm: SHA256
+  
+  # 分片上传配置
+  multipart:
+    min-part-size: 5242880  # 5MB
+    max-parts: 10000
+  
+  # Task 配置
+  task:
+    default-expire-after: 24h  # 任务默认过期时间
+  
+  # Callback 执行器配置
+  executor:
+    timeout:
+      callback: 180s  # 单个 callback 超时时间（默认）
+      chain: 900s     # 整个 callback 链超时时间（默认）
+    retry:
+      max-retries-per-callback: 2
+      backoff:
+        initial-delay: 500
+        multiplier: 2.0
+        max-delay: 5000
+  
+  # 孤儿文件清理配置
+  orphan:
+    enabled: false  # 默认关闭，生产环境开启
+    retention-days: 7  # 孤儿文件宽限期（天）
+    cleanup-cron: "0 0 3 * * ?"  # 每天凌晨3点执行
+    batch-size: 100  # 每批处理的文件数量
+    dry-run: false  # 是否仅模拟运行（不实际删除）
+
+# 监控配置
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    tech.icc.filesrv: DEBUG

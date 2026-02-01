@@ -1,0 +1,123 @@
+# File Service - Production Environment Configuration
+# 生产环境配置文件
+# 使用方式: spring.profiles.active=prod
+
+spring:
+  # Kafka 消息队列配置 (生产环境)
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all  # 确保消息可靠性
+      retries: 3
+      properties:
+        max.in.flight.requests.per.connection: 1  # 保证消息顺序
+    consumer:
+      group-id: file-srv-callback-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false  # 手动提交偏移量
+      properties:
+        spring.json.trusted.packages: tech.icc.filesrv.core.domain.events
+    listener:
+      ack-mode: manual  # 手动确认消息
+
+  # 数据源配置 (生产环境使用 PostgreSQL)
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/file_srv}
+    username: ${DB_USERNAME:file_srv_user}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # JPA/Hibernate 配置
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate  # 生产环境禁止自动更新表结构
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+
+  # 异步任务执行线程池配置
+  task:
+    execution:
+      pool:
+        core-size: 8
+        max-size: 16
+        queue-capacity: 500
+        thread-name-prefix: async-callback-
+        keep-alive: 120s
+      shutdown:
+        await-termination: true
+        await-termination-period: 60s
+
+# 文件服务配置
+file-srv:
+  storage:
+    max-file-size: 5368709120  # 5GB
+    temp-dir: ${TEMP_DIR:/tmp/file-srv}
+  
+  deduplication:
+    enabled: true
+    algorithm: SHA256
+  
+  # Callback 执行器配置
+  executor:
+    timeout:
+      callback: 300s  # 单个 callback 超时时间
+      chain: 1800s    # 整个 callback 链超时时间
+    retry:
+      max-retries-per-callback: 3
+      backoff:
+        initial-delay: 1000
+        multiplier: 2.0
+        max-delay: 10000
+  
+  # 孤儿文件清理配置
+  orphan:
+    enabled: true
+    retention-days: 7  # 孤儿文件保留天数
+    cleanup-cron: "0 0 3 * * ?"  # 每天凌晨3点执行
+    batch-size: 100  # 每批处理数量
+
+# 监控和指标配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      environment: prod
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    tech.icc.filesrv: INFO
+    org.springframework.kafka: WARN
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: ${LOG_PATH:/var/log/file-srv}/application.log
+    max-size: 100MB
+    max-history: 30
