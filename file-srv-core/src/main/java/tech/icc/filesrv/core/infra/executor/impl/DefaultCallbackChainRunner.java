@@ -20,6 +20,8 @@ import tech.icc.filesrv.core.infra.executor.exception.CallbackExecutionException
 import tech.icc.filesrv.core.infra.executor.exception.CallbackTimeoutException;
 import tech.icc.filesrv.core.infra.file.LocalFileManager;
 import tech.icc.filesrv.core.infra.plugin.PluginRegistry;
+import tech.icc.filesrv.core.callback.PluginStorageService;
+import tech.icc.filesrv.common.spi.plugin.PluginStorageServiceAware;
 
 import java.io.IOException;
 import java.net.ConnectException;
@@ -58,19 +60,22 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
     private final TaskEventPublisher eventPublisher;
     private final ExecutorService timeoutExecutor;
     private final ExecutorProperties properties;
+    private final PluginStorageService pluginStorageService;
 
     public DefaultCallbackChainRunner(TaskRepository taskRepository,
                                        PluginRegistry pluginRegistry,
                                        LocalFileManager localFileManager,
                                        TaskEventPublisher eventPublisher,
                                        ExecutorService timeoutExecutor,
-                                       ExecutorProperties properties) {
+                                       ExecutorProperties properties,
+                                       PluginStorageService pluginStorageService) {
         this.taskRepository = taskRepository;
         this.pluginRegistry = pluginRegistry;
         this.localFileManager = localFileManager;
         this.eventPublisher = eventPublisher;
         this.timeoutExecutor = timeoutExecutor;
         this.properties = properties;
+        this.pluginStorageService = pluginStorageService;
     }
 
     @Override
@@ -164,6 +169,11 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
     private PluginResult executeWithLocalRetry(String taskId, String callbackName,
                                                 TaskContext context, int index) {
         SharedPlugin plugin = pluginRegistry.getPlugin(callbackName);
+        
+        // 如果 Plugin 实现了 PluginStorageServiceAware，注入存储服务
+        if (plugin instanceof PluginStorageServiceAware aware) {
+            aware.setPluginStorageService(pluginStorageService);
+        }
         int maxRetries = properties.retry().maxRetriesPerCallback();
         Duration callbackTimeout = properties.timeout().callback();
 

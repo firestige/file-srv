@@ -1,50 +1,43 @@
-feat(core): implement TaskContext metadata injection and FileRelations auto-maintenance
+feat(P2.10): 插件存储服务 - Aware 接口模式集成
 
-This commit implements P0 phase of TaskContext feature, including:
+实现插件存储服务，支持插件上传/下载大文件和生成临时 URL：
 
-1. TaskContext Metadata Injection (Lazy-loading strategy)
-   - Fix buildParams() bug: properly populate callback parameters
-   - Extend TaskAggregate.create() to accept filename, contentType, size
-   - Implement populateContextForPlugins() for metadata injection
-   - Update TaskService.createTask() to pass file metadata
+**核心组件：**
+1. **TaskContextKeys** (file-srv-common)
+   - 定义所有 TaskContext 键名常量
+   - 提供衍生文件键名生成辅助方法
+   - 避免硬编码字符串，提升类型安全
 
-2. FileRelations Auto-maintenance (Domain Event approach)
-   - Create DerivedFilesAddedEvent domain event
-   - Implement FileRelationsEventHandler to auto-create relations
-   - Support dual-reference design (sourceKey + currentMainKey + derivedKeys)
-   - Add existsByFileFkeyAndRelatedFkey() to FileRelationRepository
-   - Detect derived files in DefaultCallbackChainRunner and publish events
+2. **PluginStorageService 接口** (file-srv-core)
+   - uploadLargeFile(): 支持大文件上传（自动分片，5MB 阈值）
+   - downloadFile(): 文件下载流
+   - deleteFile(): 文件删除（幂等）
+   - getTemporaryUrl(): 生成带签名的临时访问 URL
 
-3. Spring Event-based Message Publishing (Test environment)
-   - Create SpringEventCallbackPublisher with @Profile("test")
-   - Create CallbackTaskEventListener with @Async execution
-   - Add @Profile("!test") to Kafka publishers/consumers
-   - Configure async thread pool in application-test.yml
+3. **DefaultPluginStorageService** (file-srv-core)
+   - 基于 StorageAdapter 实现
+   - 支持直接上传和分片上传策略
+   - 完整的异常处理和日志记录
 
-4. Test Infrastructure Updates
-   - Update PluginCallbackScenarioTest to use Awaitility
-   - Replace synchronous callback execution with async polling
-   - Update TaskEventPublisher interface and implementations
+4. **PluginStorageServiceAware 接口** (file-srv-common)
+   - 类似 Spring ApplicationAware 的设计
+   - 插件通过实现此接口声明需要存储服务
+   - DefaultCallbackChainRunner 执行前自动注入
 
-Key architectural decisions:
-- Use lazy-loading to inject metadata only when needed (completeUpload)
-- Use domain events to decouple FileRelations maintenance from TaskAggregate
-- Use Spring Events in test environment to avoid Kafka dependency
-- Maintain DDD aggregate boundaries (Task vs File domains)
+**设计优势：**
+- 插件自主决策是否需要存储服务（按需实现 Aware 接口）
+- TaskContext 保持简洁，仅存储数据
+- 符合依赖注入最佳实践
+- 扩展性好（未来可添加其他 Aware 接口）
 
-Files created:
-- DerivedFilesAddedEvent.java
-- FileRelationsEventHandler.java
-- SpringEventCallbackPublisher.java
-- CallbackTaskEventListener.java
+**文件清单：**
+- file-srv-common/context/TaskContextKeys.java (NEW, 240 行)
+- file-srv-common/spi/plugin/PluginStorageServiceAware.java (NEW, 45 行)
+- file-srv-core/callback/PluginStorageService.java (NEW, 160 行)
+- file-srv-core/callback/DefaultPluginStorageService.java (NEW, 145 行)
+- file-srv-core/infra/executor/impl/DefaultCallbackChainRunner.java (MODIFIED)
+- file-srv-autoconfiguration/ExecutorAutoConfiguration.java (MODIFIED)
 
-Files modified:
-- TaskAggregate.java (buildParams, create, populateContextForPlugins)
-- TaskService.java (createTask signature)
-- DefaultCallbackChainRunner.java (event publishing)
-- TaskEventPublisher.java (interface extension)
-- LoggingTaskEventPublisher.java, TaskEventPublisherStub.java
-- FileRelationRepository.java (idempotency check)
-- PluginCallbackScenarioTest.java (Awaitility async validation)
-
-Refs: TASKCONTEXT-DECISIONS.md, SESSION-TASKCONTEXT-IMPL.md
+**验证：**
+✅ 编译通过 (BUILD SUCCESS, 13.4s)
+✅ 10/10 模块编译成功

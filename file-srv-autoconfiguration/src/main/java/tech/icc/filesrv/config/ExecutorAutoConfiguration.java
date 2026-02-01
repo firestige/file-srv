@@ -91,14 +91,16 @@ public class ExecutorAutoConfiguration {
             LocalFileManager localFileManager,
             TaskEventPublisher eventPublisher,
             ExecutorService callbackTimeoutExecutor,
-            ExecutorProperties properties) {
+            ExecutorProperties properties,
+            tech.icc.filesrv.core.callback.PluginStorageService pluginStorageService) {
         return new DefaultCallbackChainRunner(
                 taskRepository,
                 pluginRegistry,
                 localFileManager,
                 eventPublisher,
                 callbackTimeoutExecutor,
-                properties
+                properties,
+                pluginStorageService
         );
     }
 
