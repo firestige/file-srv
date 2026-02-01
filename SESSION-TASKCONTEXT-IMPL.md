@@ -142,11 +142,11 @@ git log --oneline -5
 
 | # | 任务 | 文件 | 状态 | 依赖 |
 |---|------|------|------|------|
-| 3.1.1 | 修复 buildParams() bug | `TaskAggregate.java` | ⬜ | - |
-| 3.1.2 | 扩展 create() 方法签名 | `TaskAggregate.java` | ⬜ | - |
-| 3.1.3 | 实现 populateContextForPlugins() | `TaskAggregate.java` | ⬜ | - |
+| 3.1.1 | 修复 buildParams() bug | `TaskAggregate.java` | ✅ | - |
+| 3.1.2 | 扩展 create() 方法签名 | `TaskAggregate.java` | ✅ | - |
+| 3.1.3 | 实现 populateContextForPlugins() | `TaskAggregate.java` | ✅ | - |
 | 3.1.4 | 自动维护 FileRelations | `TaskAggregate.java` | ⬜ | 2.1.1 |
-| 3.2.1 | 修改 createTask() | `TaskService.java` | ⬜ | 3.1.2 |
+| 3.2.1 | 修改 createTask() | `TaskService.java` | ✅ | 3.1.2 |
 
 ---
 

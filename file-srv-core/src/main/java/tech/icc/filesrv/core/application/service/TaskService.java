@@ -97,9 +97,17 @@ public class TaskService {
         // 验证所有 callback 插件都存在
         validateCallbacks(cfgs);
 
-        // 创建任务聚合
+        // 创建任务聚合（传递文件元数据）
         String fKey = generateFKey(request);
-        TaskAggregate task = TaskAggregate.create(fKey, request.contentHash(), cfgs, DEFAULT_EXPIRE_AFTER);
+        TaskAggregate task = TaskAggregate.create(
+                fKey, 
+                request.contentHash(), 
+                request.filename(),
+                request.contentType(),
+                request.size(),
+                cfgs, 
+                DEFAULT_EXPIRE_AFTER
+        );
 
         // 委托 FileService 创建 PENDING 状态的文件元数据
         fileService.createPendingFile(

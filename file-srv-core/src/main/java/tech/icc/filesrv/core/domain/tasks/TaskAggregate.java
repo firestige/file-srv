@@ -68,6 +68,12 @@ public class TaskAggregate {
         Map<String, Map<String, String>> params = new HashMap<>();
         for (CallbackConfig cfg : cfgs) {
             Map<String, String> param = new HashMap<>();
+            // Fill parameters from callback config
+            if (cfg.params() != null) {
+                for (var p : cfg.params()) {
+                    param.put(p.key(), p.value());
+                }
+            }
             params.put(String.format("plugin_%s", cfg.name()), param);
             params.put(cfg.name(), param);
         }
@@ -79,14 +85,22 @@ public class TaskAggregate {
      *
      * @param fKey        用户文件标识
      * @param contentHash 文件内容 Hash（客户端计算）
+     * @param filename    原始文件名
+     * @param contentType MIME 类型
+     * @param size        文件大小（字节）
      * @param cfgs        callback 列表
      * @param expireAfter 过期时间
      * @return 新任务
      */
-    public static TaskAggregate create(String fKey, String contentHash, List<CallbackConfig> cfgs, Duration expireAfter) {
+    public static TaskAggregate create(String fKey, String contentHash, String filename, 
+                                       String contentType, Long size,
+                                       List<CallbackConfig> cfgs, Duration expireAfter) {
         String taskId = UUID.randomUUID().toString();
         TaskAggregate task = new TaskAggregate(taskId, fKey, cfgs, expireAfter);
         task.contentHash = contentHash;
+        task.filename = filename;
+        task.contentType = contentType;
+        task.totalSize = size;
         return task;
     }
 
@@ -143,12 +157,8 @@ public class TaskAggregate {
         this.contentType = contentType;
         this.filename = filename;
 
-        // 更新 context
-        context.put(TaskContext.KEY_STORAGE_PATH, storagePath);
-        context.put(TaskContext.KEY_FILE_HASH, hash);
-        context.put(TaskContext.KEY_FILE_SIZE, totalSize);
-        context.put(TaskContext.KEY_CONTENT_TYPE, contentType);
-        context.put(TaskContext.KEY_FILENAME, filename);
+        // Populate TaskContext for plugin execution (lazy loading)
+        populateContextForPlugins();
 
         // 如果没有 callback，直接完成
         if (callbacks.isEmpty()) {
@@ -156,6 +166,42 @@ public class TaskAggregate {
         } else {
             this.status = TaskStatus.PROCESSING;
         }
+    }
+
+    /**
+     * Populate TaskContext with complete task and file metadata for plugin execution.
+     * <p>
+     * This method is called once in {@link #completeUpload} to inject all necessary
+     * metadata that plugins need to access. This lazy-loading approach ensures that
+     * context is only populated when callbacks are about to execute.
+     * </p>
+     * <p>
+     * Injected fields:
+     * <ul>
+     *   <li>Task: task.id, task.status</li>
+     *   <li>File: file.fkey, file.name, file.type, file.size, file.path, file.etag</li>
+     * </ul>
+     * </p>
+     */
+    private void populateContextForPlugins() {
+        // Task information
+        context.put("task.id", this.taskId);
+        context.put("task.status", this.status.name());
+
+        // File information (core metadata for plugin processing)
+        context.put("file.fkey", this.fKey);
+        context.put("file.name", this.filename);
+        context.put("file.type", this.contentType);
+        context.put("file.size", this.totalSize);
+        context.put("file.path", this.storagePath);
+        context.put("file.etag", this.hash);
+
+        // Legacy keys for backward compatibility
+        context.put(TaskContext.KEY_STORAGE_PATH, this.storagePath);
+        context.put(TaskContext.KEY_FILE_HASH, this.hash);
+        context.put(TaskContext.KEY_FILE_SIZE, this.totalSize);
+        context.put(TaskContext.KEY_CONTENT_TYPE, this.contentType);
+        context.put(TaskContext.KEY_FILENAME, this.filename);
     }
 
     /**
