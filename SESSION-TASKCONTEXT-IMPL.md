@@ -1,9 +1,9 @@
 # TaskContext 实施会话文档
 
 > **创建时间**：2026-02-01  
-> **最后更新**：2026-02-01 11:30  
+> **最后更新**：2026-02-01 12:15  
 > **目的**：恢复会话上下文，跟踪实施进度  
-> **当前阶段**：P1 - 生产就绪优化已完成
+> **当前阶段**：P1 - 生产就绪优化已完成（含可观测性增强）
 
 ---
 
@@ -262,11 +262,11 @@ public void updateTask(...) { }
 
 ### 阶段 8：可观测性（可并行）
 
-| # | 任务 | 文件 | 状态 | 优先级 | 预估工时 |
+| # | 任务 | 文件 | 状态 | 优先级 | 实际工时 |
 |---|------|------|------|--------|---------|
-| 8.1 | 实现 AOP 日志切面 | `TaskContextLoggingAspect.java` | ⬜ | [应该] | 4h |
-| 8.2 | 添加 MDC 上下文 | `TaskContextLoggingAspect.java` | ⬜ | [应该] | 2h |
-| 8.3 | 配置结构化日志 | `logback-spring.xml` | ⬜ | [应该] | 2h |
+| 8.1 | 实现 AOP 日志切面 | `TaskContextLoggingAspect.java` | ✅ | [应该] | 1.5h |
+| 8.2 | 添加 MDC 上下文 | `TaskContextLoggingAspect.java` | ✅ | [应该] | （已包含在8.1） |
+| 8.3 | 配置结构化日志 | `logback-spring.xml` | ✅ | [应该] | 1h |
 
 **目标**：
 - 自动记录 TaskContext 注入/修改日志
@@ -313,8 +313,9 @@ P0 阶段完成
 
 ### [应该] 完成项
 
-- [ ] Redis 缓存层实现
-- [ ] AOP 日志切面和 MDC
+- [x] AOP 日志切面和 MDC（TaskContextLoggingAspect）
+- [x] 结构化日志配置（logback-spring.xml，支持 ELK）
+- [ ] Redis 缓存层实现（延后到 P2，已有 Caffeine 本地缓存）
 
 ### [可选] 完成项
 
@@ -456,10 +457,9 @@ file-srv-common/src/main/java/tech/icc/filesrv/common/
    - 功能验证待执行
 
 ### ✅ P1 已完成（2026-02-01）
-
-**P1 提交记录**（2026-02-01 11:30）：
-- ✅ Commit: `b204e15` - feat(P1): 生产就绪优化 - 配置管理、孤儿文件清理、并发控制
-- 📦 8 个文件变更，507 行新增，2 行修改
+：
+- ✅ Commit: `b204e15` (2026-02-01 11:30) - feat(P1): 生产就绪优化 - 配置管理、孤儿文件清理、并发控制
+- ✅ Commit: `88833b5` (2026-02-01 12:15) - feat(P1.8): 可观测性增强 - AOP 日志切面与结构化日志
 
 **P1 核心成果**：
 1. ✅ 生产环境配置（application-prod.yml + application.yml）
@@ -467,6 +467,13 @@ file-srv-common/src/main/java/tech/icc/filesrv/common/
 3. ✅ Micrometer 指标监控（5 个指标）
 4. ✅ JPA 乐观锁（TaskEntity @Version）
 5. ✅ Spring Retry 重试机制（TaskService @Retryable）
+6. ✅ 调度配置（SchedulingAutoConfiguration）
+7. ✅ AOP 日志切面（TaskContextLoggingAspect + MDC）
+8. ✅ 结构化日志（logback-spring.xml，支持 ELK）
+
+**P1 决策说明**：
+- Redis 分布式缓存延后到 P2 阶段（已有 Caffeine 本地缓存满足需求）
+- 配置文档完善标记为 [可选]，优先保证代码质量tryable）
 6. ✅ 调度配置（SchedulingAutoConfiguration）
 
 ### 🔄 下一步工作
@@ -493,9 +500,10 @@ file-srv-common/src/main/java/tech/icc/filesrv/common/
 - **阶段 1**：7/7 任务完成 (100%)
 - **阶段 2**：5/5 任务完成 (100%)
 - **阶段 3**：5/5 任务完成 (100%)
-- **阶段 4**：1/4 任务完成 (25%，其余跳过)
-- **总计**：18/21 任务完成 (86%)
-
+- **阶段 4**：1/4 任务完成 (25%，Redis 延后到 P2，测试待统一编写)
+- **阶段 8**：3/3 任务完成 (100%)
+- **总计 [必须] 任务**：7/8 完成 (88%)
+- **总计 [应该] 任务**：2/3 完成 (67%，Redis 延后
 **P1 阶段**：
 - **阶段 5**：2/3 任务完成 (67%，[可选] 任务跳过)
 - **阶段 6**：3/4 任务完成 (75%，测试待统一编写)
@@ -512,7 +520,8 @@ file-srv-common/src/main/java/tech/icc/filesrv/common/
 | 日期 | 任务 | 问题描述 | 解决方案 | 状态 |
 |------|------|---------|---------|------|
 | 2026-02-01 | P0.3.1.4 | TaskAggregate 不应依赖 Repository，违反 DDD 分层 | 采用领域事件方案 C，通过 FileRelationsEventHandler 监听 DerivedFilesAddedEvent | ✅ 已解决 |
-
+2:15 | P1.8 可观测性增强提交完成（88833b5），P1 阶段全部完成 | AI |
+| 2026-02-01 1
 ---
 
 ## 变更历史
