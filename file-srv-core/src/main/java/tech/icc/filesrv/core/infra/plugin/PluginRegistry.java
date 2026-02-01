@@ -1,6 +1,6 @@
 package tech.icc.filesrv.core.infra.plugin;
 
-import tech.icc.filesrv.common.exception.PluginNotFoundException;
+import tech.icc.filesrv.common.exception.validation.PluginNotFoundException;
 import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
 
 import java.util.Set;

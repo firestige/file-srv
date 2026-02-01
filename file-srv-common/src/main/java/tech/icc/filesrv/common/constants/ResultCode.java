@@ -47,4 +47,6 @@ public interface ResultCode {
     int STORAGE_UNAVAILABLE = 0x50300;
     /** 504 - 错误的 fkey*/
     int INVALID_FKEY = 0x50400;
+    /** 404 - 插件未找到 */
+    int PLUGIN_NOT_FOUND = 0x40402;
 }

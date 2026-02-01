@@ -2,6 +2,7 @@ package tech.icc.filesrv.core.infra.executor.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 import tech.icc.filesrv.common.context.TaskContext;
 import tech.icc.filesrv.common.spi.plugin.PluginResult;
 import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
@@ -44,6 +45,7 @@ import java.util.concurrent.TimeoutException;
  *   <li>整个链在同一节点完成，避免文件重复下载</li>
  * </ul>
  */
+@Service
 public class DefaultCallbackChainRunner implements CallbackChainRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultCallbackChainRunner.class);

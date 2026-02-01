@@ -94,10 +94,15 @@ public class TaskAggregate {
 
     /**
      * 开始上传（记录 session）
+     *
+     * @param sessionId 会话 ID，如果为 null 则保持已有的 sessionId
+     * @param nodeId    节点 ID
      */
     public void startUpload(String sessionId, String nodeId) {
         assertStatus(TaskStatus.PENDING, "start upload");
-        this.sessionId = sessionId;
+        if (sessionId != null) {
+            this.sessionId = sessionId;
+        }
         this.nodeId = nodeId;
         this.status = TaskStatus.IN_PROGRESS;
     }

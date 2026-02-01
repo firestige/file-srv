@@ -16,6 +16,7 @@ import tech.icc.filesrv.common.context.Result;
 import tech.icc.filesrv.common.exception.validation.AccessDeniedException;
 import tech.icc.filesrv.common.exception.validation.FileNotFoundException;
 import tech.icc.filesrv.common.exception.FileServiceException;
+import tech.icc.filesrv.common.exception.validation.PluginNotFoundException;
 import tech.icc.filesrv.common.exception.validation.TaskNotFoundException;
 import tech.icc.filesrv.common.exception.validation.ValidationException;
 
@@ -63,7 +64,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<Result<Void>> handleFileOrTaskNotFoundException(ValidationException e) {
-        if (e instanceof FileNotFoundException || e instanceof TaskNotFoundException) {
+        if (e instanceof FileNotFoundException || e instanceof TaskNotFoundException || e instanceof PluginNotFoundException) {
             log.warn("not found exception: {}", e.getMessage());
             return ResponseEntity
                     .status(HttpStatus.NOT_FOUND)

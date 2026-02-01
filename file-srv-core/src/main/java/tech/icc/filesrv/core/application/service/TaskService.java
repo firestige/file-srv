@@ -12,7 +12,6 @@ import tech.icc.filesrv.common.vo.task.*;
 import tech.icc.filesrv.core.application.service.dto.FileInfoDto;
 import tech.icc.filesrv.core.application.service.dto.PartETagDto;
 import tech.icc.filesrv.core.application.service.dto.TaskInfoDto;
-import tech.icc.filesrv.common.vo.audit.OwnerInfo;
 import tech.icc.filesrv.core.domain.events.TaskCompletedEvent;
 import tech.icc.filesrv.core.domain.events.TaskFailedEvent;
 import tech.icc.filesrv.core.domain.tasks.*;
@@ -21,7 +20,7 @@ import tech.icc.filesrv.core.infra.cache.TaskIdValidator;
 import tech.icc.filesrv.core.infra.event.TaskEventPublisher;
 import tech.icc.filesrv.core.infra.executor.CallbackTaskPublisher;
 import tech.icc.filesrv.core.infra.file.LocalFileManager;
-import tech.icc.filesrv.common.exception.PluginNotFoundException;
+import tech.icc.filesrv.common.exception.validation.PluginNotFoundException;
 import tech.icc.filesrv.core.infra.plugin.PluginRegistry;
 import tech.icc.filesrv.common.spi.storage.PartETagInfo;
 import tech.icc.filesrv.common.spi.storage.StorageAdapter;
@@ -115,8 +114,8 @@ public class TaskService {
         String storagePath = buildStoragePath(fKey, request.contentType());
         UploadSession session = storageAdapter.beginUpload(storagePath, request.contentType());
 
-        // 记录会话信息
-        task.startUpload(session.getSessionId(), getNodeId());
+        // 保存 sessionId，但保持 PENDING 状态（真正开始上传时才转为 IN_PROGRESS）
+        task.updateSessionId(session.getSessionId());
 
         // 保存任务
         taskRepository.save(task);
@@ -147,6 +146,13 @@ public class TaskService {
     @Transactional
     public PartETagDto uploadPart(String taskId, int partNumber, InputStream content, long size) {
         TaskAggregate task = getTaskOrThrow(taskId);
+
+        // 如果是第一次上传分片（状态为 PENDING），则转为 IN_PROGRESS
+        if (task.getStatus() == TaskStatus.PENDING) {
+            task.startUpload(task.getSessionId(), getNodeId());
+            taskRepository.save(task);
+            log.debug("Task status changed to IN_PROGRESS: taskId={}", taskId);
+        }
 
         // 恢复上传会话（支持降级：如果不支持断点续传，则重新初始化）
         String storagePath = buildStoragePath(task.getFKey(), task.getContentType());

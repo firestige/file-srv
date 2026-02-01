@@ -1,7 +1,7 @@
 package tech.icc.filesrv.core.infra.plugin.impl;
 
 import org.springframework.stereotype.Component;
-import tech.icc.filesrv.common.exception.PluginNotFoundException;
+import tech.icc.filesrv.common.exception.validation.PluginNotFoundException;
 import tech.icc.filesrv.core.infra.plugin.PluginRegistry;
 import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
 
