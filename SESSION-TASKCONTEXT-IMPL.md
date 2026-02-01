@@ -130,11 +130,11 @@ git log --oneline -5
 
 | # | 任务 | 文件 | 状态 | 依赖 |
 |---|------|------|------|------|
-| 2.1.1 | 创建 FileRelationRepository | `file-srv-core/.../repository/FileRelationRepository.java` | ⬜ | 1.2.1 |
-| 2.2.1 | 创建 SpringEventCallbackPublisher | `file-srv-core/.../executor/impl/SpringEventCallbackPublisher.java` | ⬜ | 1.1.2 |
-| 2.2.2 | 创建 CallbackTaskEventListener | `file-srv-core/.../executor/impl/CallbackTaskEventListener.java` | ⬜ | 1.1.2 |
-| 2.3.1 | 修改 DerivedFile | `DerivedFile.java` | ⬜ | 1.1.1 |
-| 2.3.2 | 修改 FileInfoResponse | `FileInfoResponse.java` | ⬜ | 1.1.1 |
+| 2.1.1 | 创建 FileRelationRepository | `file-srv-core/.../repository/FileRelationRepository.java` | ✅ | 1.2.1 |
+| 2.2.1 | 创建 SpringEventCallbackPublisher | `file-srv-core/.../executor/impl/SpringEventCallbackPublisher.java` | ✅ | 1.1.2 |
+| 2.2.2 | 创建 CallbackTaskEventListener | `file-srv-core/.../executor/impl/CallbackTaskEventListener.java` | ✅ | 1.1.2 |
+| 2.3.1 | 修改 DerivedFile | `DerivedFile.java` | ✅ | 1.1.1 |
+| 2.3.2 | 修改 FileInfoResponse | `FileInfoResponse.java` | ✅ | 1.1.1 |
 
 ---
 

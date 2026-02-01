@@ -7,6 +7,7 @@ import tech.icc.filesrv.common.vo.audit.OwnerInfo;
 import tech.icc.filesrv.common.vo.file.AccessControl;
 import tech.icc.filesrv.common.vo.file.CustomMetadata;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
+import tech.icc.filesrv.common.vo.file.FileRelations;
 import tech.icc.filesrv.common.vo.file.FileTags;
 import tech.icc.filesrv.common.vo.file.StorageRef;
 
@@ -15,6 +16,11 @@ import tech.icc.filesrv.common.vo.file.StorageRef;
  * <p>
  * 组合共享 VO，添加展示相关注解（@JsonUnwrapped 等）。
  * 由 Assembler 从应用层 DTO 转换而来。
+ * </p>
+ * <p>
+ * The {@link FileRelations} field is unwrapped to expose source, main, and derived
+ * file relationships directly in the JSON response.
+ * </p>
  */
 @Builder
 public record FileInfoResponse(
@@ -24,5 +30,6 @@ public record FileInfoResponse(
         @JsonUnwrapped AuditInfo audit,
         @JsonUnwrapped AccessControl access,
         @JsonUnwrapped FileTags fileTags,
-        @JsonUnwrapped CustomMetadata metadata
+        @JsonUnwrapped CustomMetadata metadata,
+        @JsonUnwrapped FileRelations relations
 ) {}
