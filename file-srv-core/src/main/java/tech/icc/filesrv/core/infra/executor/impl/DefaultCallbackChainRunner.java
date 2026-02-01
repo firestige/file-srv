@@ -7,6 +7,8 @@ import tech.icc.filesrv.common.context.TaskContext;
 import tech.icc.filesrv.common.spi.plugin.PluginResult;
 import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
 import tech.icc.filesrv.common.vo.task.CallbackConfig;
+import tech.icc.filesrv.common.vo.task.DerivedFile;
+import tech.icc.filesrv.core.domain.events.DerivedFilesAddedEvent;
 import tech.icc.filesrv.core.domain.events.TaskCompletedEvent;
 import tech.icc.filesrv.core.domain.events.TaskFailedEvent;
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
@@ -117,8 +119,19 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
     private void handleResult(TaskAggregate task, String callbackName,
                               PluginResult result, TaskContext context) {
         if (result instanceof PluginResult.Success success) {
+            // 记录执行前的衍生文件数量
+            int beforeCount = context.getDerivedFiles().size();
+            
             // 合并输出到 context
             context.putAll(success.outputs());
+            
+            // 检测新增的衍生文件并发布事件
+            List<DerivedFile> allDerivedFiles = context.getDerivedFiles();
+            if (allDerivedFiles.size() > beforeCount) {
+                List<DerivedFile> newDerivedFiles = allDerivedFiles.subList(beforeCount, allDerivedFiles.size());
+                publishDerivedFilesAddedEvent(task.getTaskId(), task.getFKey(), newDerivedFiles);
+            }
+            
             // 推进并持久化（断点恢复关键）
             task.advanceCallback();
             taskRepository.save(task);
@@ -266,5 +279,18 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
                 task.getCurrentCallbackIndex()
         );
         eventPublisher.publishFailed(event);
+    }
+
+    /**
+     * 发布衍生文件添加事件
+     */
+    private void publishDerivedFilesAddedEvent(String taskId, String sourceFkey, List<DerivedFile> newDerivedFiles) {
+        if (newDerivedFiles == null || newDerivedFiles.isEmpty()) {
+            return;
+        }
+        DerivedFilesAddedEvent event = DerivedFilesAddedEvent.of(taskId, sourceFkey, newDerivedFiles);
+        eventPublisher.publishDerivedFilesAdded(event);
+        log.debug("Published DerivedFilesAddedEvent: taskId={}, sourceFkey={}, count={}", 
+                taskId, sourceFkey, newDerivedFiles.size());
     }
 }

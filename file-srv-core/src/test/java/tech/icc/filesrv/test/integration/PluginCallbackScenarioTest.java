@@ -19,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import tech.icc.filesrv.test.config.TestStorageConfig;
 import tech.icc.filesrv.test.support.stub.CallbackTaskPublisherStub;
 import tech.icc.filesrv.test.support.stub.ObjectStorageServiceStub;
-import tech.icc.filesrv.core.infra.executor.CallbackChainRunner;
 import tech.icc.filesrv.core.domain.tasks.TaskRepository;
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
 import tech.icc.filesrv.common.context.TaskContext;
@@ -29,7 +28,9 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -77,9 +78,6 @@ class PluginCallbackScenarioTest {
 
     @Autowired
     private CallbackTaskPublisherStub callbackPublisher;
-
-    @Autowired
-    private CallbackChainRunner callbackRunner;
 
     @Autowired
     private TaskRepository taskRepository;
@@ -674,17 +672,27 @@ class PluginCallbackScenarioTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("PROCESSING"));
 
-        // Step 5: 执行 callback 链（模拟 executor 消费消息）
+        // Step 5: 等待 callback 链自动执行完成（通过 Spring Event 异步触发）
+        log.info("Waiting for callback chain to complete asynchronously...");
+        
+        await()
+                .atMost(10, SECONDS)
+                .pollInterval(1, SECONDS)
+                .pollDelay(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> {
+                    String response = mockMvc.perform(get("/api/v1/files/upload_task/{taskId}", taskId))
+                            .andExpect(status().isOk())
+                            .andReturn()
+                            .getResponse()
+                            .getContentAsString();
+                    String status = JsonPath.read(response, "$.data.status");
+                    assertThat(status).isEqualTo("COMPLETED");
+                });
+
+        log.info("Callback chain completed successfully");
+
+        // Step 6: 验证执行后的状态
         TaskAggregate task = taskRepository.findByTaskId(taskId).orElseThrow();
-        assertThat(task.getStatus()).isEqualTo(TaskStatus.PROCESSING);
-        assertThat(task.hasCallbacks()).isTrue();
-        assertThat(task.getCallbacks()).hasSize(3);
-
-        // 执行 callback 链（模拟真实执行）
-        callbackRunner.run(task);
-
-        // Step 6: 验证执行后的状态（应该是 COMPLETED）
-        task = taskRepository.findByTaskId(taskId).orElseThrow();
         assertThat(task.getStatus()).isEqualTo(TaskStatus.COMPLETED);
         assertThat(task.getCompletedAt()).isNotNull();
 
@@ -719,11 +727,12 @@ class PluginCallbackScenarioTest {
         // ✅ 任务创建时状态为 PENDING
         // ✅ 第一次上传分片后状态变为 IN_PROGRESS
         // ✅ 完成上传后状态变为 PROCESSING
-        // ✅ Callback 任务消息已发布到队列
-        // ✅ Callback 链执行成功（所有 3 个插件）
-        // ✅ 任务最终状态为 COMPLETED
+        // ✅ Callback 任务消息已发布（通过 Spring Event）
+        // ✅ Callback 链自动异步执行成功（所有 3 个插件）
+        // ✅ 任务最终状态为 COMPLETED（通过 Awaitility 轮询验证）
         // ✅ hash-verify 插件输出验证通过
         // ✅ rename 插件输出验证通过
         // ✅ thumbnail 插件输出验证通过
+        // ✅ 验证了完整的消息发布-订阅-执行流程
     }
 }

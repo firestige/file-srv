@@ -1,5 +1,6 @@
 package tech.icc.filesrv.core.infra.event;
 
+import tech.icc.filesrv.core.domain.events.DerivedFilesAddedEvent;
 import tech.icc.filesrv.core.domain.events.TaskCompletedEvent;
 import tech.icc.filesrv.core.domain.events.TaskFailedEvent;
 
@@ -23,4 +24,11 @@ public interface TaskEventPublisher {
      * @param event 失败事件
      */
     void publishFailed(TaskFailedEvent event);
+
+    /**
+     * 发布衍生文件添加事件
+     *
+     * @param event 衍生文件添加事件
+     */
+    void publishDerivedFilesAdded(DerivedFilesAddedEvent event);
 }

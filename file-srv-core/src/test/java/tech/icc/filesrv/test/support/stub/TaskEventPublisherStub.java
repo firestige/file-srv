@@ -1,6 +1,7 @@
 package tech.icc.filesrv.test.support.stub;
 
 import lombok.Getter;
+import tech.icc.filesrv.core.domain.events.DerivedFilesAddedEvent;
 import tech.icc.filesrv.core.domain.events.TaskCompletedEvent;
 import tech.icc.filesrv.core.domain.events.TaskFailedEvent;
 import tech.icc.filesrv.core.infra.event.TaskEventPublisher;
@@ -23,6 +24,9 @@ public class TaskEventPublisherStub implements TaskEventPublisher {
     @Getter
     private final List<TaskFailedEvent> failedEvents = new CopyOnWriteArrayList<>();
 
+    @Getter
+    private final List<DerivedFilesAddedEvent> derivedFilesAddedEvents = new CopyOnWriteArrayList<>();
+
     @Override
     public void publishCompleted(TaskCompletedEvent event) {
         completedEvents.add(event);
@@ -33,18 +37,24 @@ public class TaskEventPublisherStub implements TaskEventPublisher {
         failedEvents.add(event);
     }
 
+    @Override
+    public void publishDerivedFilesAdded(DerivedFilesAddedEvent event) {
+        derivedFilesAddedEvents.add(event);
+    }
+
     /**
      * 清空所有记录的事件
      */
     public void clear() {
         completedEvents.clear();
         failedEvents.clear();
+        derivedFilesAddedEvents.clear();
     }
 
     /**
      * 获取所有已发布的事件总数
      */
     public int getTotalEventCount() {
-        return completedEvents.size() + failedEvents.size();
+        return completedEvents.size() + failedEvents.size() + derivedFilesAddedEvents.size();
     }
 }

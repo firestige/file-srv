@@ -2,6 +2,7 @@ package tech.icc.filesrv.core.infra.event.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tech.icc.filesrv.core.domain.events.DerivedFilesAddedEvent;
 import tech.icc.filesrv.core.domain.events.TaskCompletedEvent;
 import tech.icc.filesrv.core.domain.events.TaskFailedEvent;
 import tech.icc.filesrv.core.infra.event.TaskEventPublisher;
@@ -26,5 +27,11 @@ public class LoggingTaskEventPublisher implements TaskEventPublisher {
     public void publishFailed(TaskFailedEvent event) {
         log.warn("Task failed event: taskId={}, fKey={}, status={}, reason={}",
                 event.taskId(), event.fKey(), event.finalStatus(), event.failureReason());
+    }
+
+    @Override
+    public void publishDerivedFilesAdded(DerivedFilesAddedEvent event) {
+        log.info("Derived files added event: taskId={}, sourceFkey={}, count={}",
+                event.taskId(), event.sourceFkey(), event.getDerivedFileCount());
     }
 }

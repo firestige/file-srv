@@ -93,4 +93,16 @@ public interface FileRelationRepository extends JpaRepository<FileRelationEntity
      * @param relatedFkey the related file key
      */
     void deleteByRelatedFkey(String relatedFkey);
+
+    /**
+     * Check if a relation exists between two files.
+     * <p>
+     * Used for idempotency checks when creating relations.
+     * </p>
+     *
+     * @param fileFkey    the file key
+     * @param relatedFkey the related file key
+     * @return true if any relation exists between the two files
+     */
+    boolean existsByFileFkeyAndRelatedFkey(String fileFkey, String relatedFkey);
 }

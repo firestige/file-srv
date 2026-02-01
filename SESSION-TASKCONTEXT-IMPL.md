@@ -1,8 +1,9 @@
 # TaskContext 实施会话文档
 
 > **创建时间**：2026-02-01  
+> **最后更新**：2026-02-01 11:13  
 > **目的**：恢复会话上下文，跟踪实施进度  
-> **当前阶段**：P0 阶段 1 - 基础设施层
+> **当前阶段**：P0 - 所有核心功能已完成，待验证测试
 
 ---
 
@@ -145,7 +146,7 @@ git log --oneline -5
 | 3.1.1 | 修复 buildParams() bug | `TaskAggregate.java` | ✅ | - |
 | 3.1.2 | 扩展 create() 方法签名 | `TaskAggregate.java` | ✅ | - |
 | 3.1.3 | 实现 populateContextForPlugins() | `TaskAggregate.java` | ✅ | - |
-| 3.1.4 | 自动维护 FileRelations | `TaskAggregate.java` | ⬜ | 2.1.1 |
+| 3.1.4 | 自动维护 FileRelations | `DerivedFilesAddedEvent.java` + `FileRelationsEventHandler.java` | ✅ | 2.1.1 |
 | 3.2.1 | 修改 createTask() | `TaskService.java` | ✅ | 3.1.2 |
 
 ---
@@ -154,7 +155,7 @@ git log --oneline -5
 
 | # | 任务 | 文件 | 状态 | 依赖 |
 |---|------|------|------|------|
-| 4.1.1 | 修改 E2E 测试 | `PluginCallbackScenarioTest.java` | ⬜ | 2.2.x |
+| 4.1.1 | 修改 E2E 测试 | `PluginCallbackScenarioTest.java` | ✅ | 2.2.x |
 | 4.1.2 | 验证消息自动触发 | - | ⬜ | 阶段 3 |
 | 4.1.3 | 验证 Context 注入 | - | ⬜ | 阶段 3 |
 | 4.1.4 | 验证 FileRelations 功能 | - | ⬜ | 阶段 3 |
@@ -173,41 +174,48 @@ git log --oneline -5
 
 ```
 file-srv-common/src/main/java/tech/icc/filesrv/common/vo/file/
-└── FileRelations.java                    ← 1.1.1
+└── FileRelations.java                    ← 1.1.1 ✅
 
 file-srv-core/src/main/java/tech/icc/filesrv/core/
 ├── domain/events/
-│   └── CallbackTaskEvent.java            ← 1.1.2
-├── repository/
-│   └── FileRelationRepository.java       ← 2.1.1
-└── executor/impl/
-    ├── SpringEventCallbackPublisher.java ← 2.2.1
-    └── CallbackTaskEventListener.java    ← 2.2.2
+│   ├── CallbackTaskEvent.java            ← 1.1.2 ✅
+│   └── DerivedFilesAddedEvent.java       ← 3.1.4 ✅ (新增)
+├── infra/persistence/
+│   ├── entity/FileRelationEntity.java    ← 1.2.1 ✅
+│   └── repository/FileRelationRepository.java ← 2.1.1 ✅
+├── infra/event/impl/
+│   ├── SpringEventCallbackPublisher.java ← 2.2.1 ✅
+│   ├── CallbackTaskEventListener.java    ← 2.2.2 ✅
+│   └── FileRelationsEventHandler.java    ← 3.1.4 ✅ (新增)
 ```
 
 ### 需要修改的文件（P0）
 
 ```
 file-srv-core/src/main/java/tech/icc/filesrv/core/
-├── executor/
-│   ├── CallbackTaskPublisher.java        ← 1.3.1 更新注释
+├── infra/executor/
+│   ├── CallbackTaskPublisher.java        ← 1.3.1 ✅ 更新注释
 │   └── impl/
-│       ├── KafkaCallbackTaskPublisher.java ← 1.3.2 添加 @Profile
-│       └── KafkaCallbackTaskConsumer.java  ← 1.3.3 添加 @Profile
-├── domain/model/
-│   └── TaskAggregate.java                ← 3.1.x 多处修改
-└── service/
-    └── TaskService.java                  ← 3.2.1
+│       ├── KafkaCallbackTaskPublisher.java ← 1.3.2 ✅ 添加 @Profile
+│       ├── KafkaCallbackTaskConsumer.java  ← 1.3.3 ✅ 添加 @Profile
+│       └── DefaultCallbackChainRunner.java ← 3.1.4 ✅ 发布事件 (新增)
+├── infra/event/
+│   ├── TaskEventPublisher.java           ← 3.1.4 ✅ 添加方法 (新增)
+│   └── impl/LoggingTaskEventPublisher.java ← 3.1.4 ✅ 实现方法 (新增)
+├── domain/tasks/
+│   └── TaskAggregate.java                ← 3.1.x ✅ 多处修改
+└── application/service/
+    └── TaskService.java                  ← 3.2.1 ✅
+
+file-srv-core/src/test/java/tech/icc/filesrv/
+├── test/support/stub/
+│   └── TaskEventPublisherStub.java       ← 3.1.4 ✅ 添加支持 (新增)
+└── test/integration/
+    └── PluginCallbackScenarioTest.java   ← 4.1.1 ✅ Awaitility
 
 file-srv-common/src/main/java/tech/icc/filesrv/common/
-├── dto/
-│   └── DerivedFile.java                  ← 2.3.1
-└── response/
-    └── FileInfoResponse.java             ← 2.3.2
-
-file-srv-core/src/test/
-├── java/.../PluginCallbackScenarioTest.java ← 4.1.1
-└── resources/application-test.yml        ← 1.4.1
+├── vo/task/DerivedFile.java              ← 2.3.1 ✅
+└── response/FileInfoResponse.java        ← 2.3.2 ✅
 ```
 
 ---
@@ -241,19 +249,64 @@ file-srv-core/src/test/
 - [ ] Git 提交：`feat(core): add infrastructure for TaskContext implementation`
 
 **阶段 2 完成条件**：
-- [ ] 所有 2.x.x 任务状态为 ✅
-- [ ] `mvn clean compile -DskipTests` 通过
+- [x] 所有 2.x.x 任务状态为 ✅
+- [x] `mvn clean compile -DskipTests` 通过
 - [ ] Git 提交：`feat(core): implement Spring Event message publishing`
 
 **阶段 3 完成条件**：
-- [ ] 所有 3.x.x 任务状态为 ✅
-- [ ] `mvn clean compile -DskipTests` 通过
-- [ ] Git 提交：`feat(core): implement TaskContext metadata injection`
+- [x] 所有 3.x.x 任务状态为 ✅
+- [x] `mvn clean compile -DskipTests` 通过
+- [ ] Git 提交：`feat(core): implement TaskContext metadata injection and FileRelations`
 
 **阶段 4 完成条件**：
-- [ ] 所有 4.x.x 任务状态为 ✅
+- [x] 4.1.1 E2E 测试修改已完成 ✅
+- [ ] 4.1.2-4.1.4 功能验证待执行
 - [ ] `mvn test` 通过（所有测试）
 - [ ] Git 提交：`test(core): update E2E tests for async callback flow`
+
+---
+
+## 当前进度总结
+
+### ✅ P0 已完成功能
+
+1. **基础设施层** (阶段 1) - 全部完成
+   - FileRelations VO、CallbackTaskEvent、DerivedFilesAddedEvent
+   - FileRelationEntity 和 Repository
+   - Profile 注解隔离、异步线程池配置
+
+2. **实现层** (阶段 2) - 全部完成
+   - Spring Event 消息发布订阅机制
+   - FileRelationsEventHandler（领域事件监听）
+   - DerivedFile 和 FileInfoResponse 扩展
+
+3. **核心业务逻辑** (阶段 3) - 全部完成
+   - buildParams() 修复
+   - create() 方法签名扩展
+   - populateContextForPlugins() 实现
+   - **FileRelations 自动维护**（领域事件方案）
+   - TaskService.createTask() 更新
+
+4. **测试修改** (阶段 4) - 部分完成
+   - PluginCallbackScenarioTest 使用 Awaitility ✅
+   - 功能验证待执行
+
+### 🔄 下一步工作
+
+P0 剩余任务：
+- 4.1.2 验证消息自动触发
+- 4.1.3 验证 Context 注入
+- 4.1.4 验证 FileRelations 功能
+- 运行完整测试套件
+- Git 提交和推送
+
+### 📊 P0 完成度统计
+
+- **阶段 1**：7/7 任务完成 (100%)
+- **阶段 2**：5/5 任务完成 (100%)
+- **阶段 3**：5/5 任务完成 (100%)
+- **阶段 4**：1/4 任务完成 (25%)
+- **总计**：18/21 任务完成 (86%)
 
 ---
 
@@ -263,7 +316,7 @@ file-srv-core/src/test/
 
 | 日期 | 任务 | 问题描述 | 解决方案 | 状态 |
 |------|------|---------|---------|------|
-| - | - | - | - | - |
+| 2026-02-01 | P0.3.1.4 | TaskAggregate 不应依赖 Repository，违反 DDD 分层 | 采用领域事件方案 C，通过 FileRelationsEventHandler 监听 DerivedFilesAddedEvent | ✅ 已解决 |
 
 ---
 
@@ -271,6 +324,7 @@ file-srv-core/src/test/
 
 | 日期 | 变更内容 | 操作者 |
 |------|---------|--------|
+| 2026-02-01 11:13 | P0.3.1.4 和 P0.4.1.1 完成，更新进度文档 | AI |
 | 2026-02-01 | 创建文档，初始化 P0 任务清单 | AI |
 
 ---
