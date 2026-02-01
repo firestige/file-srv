@@ -116,6 +116,53 @@ public final class TaskContextKeys {
      */
     public static final String FILE_HASH = "file.hash";
 
+    // ==================== 内部键名（用于临时数据和上下文） ====================
+
+    /**
+     * 本地文件路径（临时文件）
+     * <p>
+     * 类型: String<br>
+     * 用途: 保存上传到服务器的临时文件路径，供插件读取<br>
+     * 示例: "/tmp/upload_abc123.dat"
+     */
+    public static final String KEY_LOCAL_FILE_PATH = "localFilePath";
+
+    /**
+     * 文件名（用于内部上下文传递）
+     * <p>
+     * 类型: String<br>
+     * 示例: "avatar.jpg"
+     */
+    public static final String KEY_FILENAME = "filename";
+
+    /**
+     * 内容类型（用于内部上下文传递）
+     * <p>
+     * 类型: String<br>
+     * 示例: "image/jpeg"
+     */
+    public static final String KEY_CONTENT_TYPE = "contentType";
+
+    // ==================== 元数据修改键（用于 setMetadata） ====================
+
+    /**
+     * 元数据修改：文件名
+     * <p>
+     * 用于元数据修改类插件，通过 {@code ctx.setMetadata(METADATA_FILENAME, newName)} 修改文件名<br>
+     * 类型: String<br>
+     * 示例: "renamed_avatar.jpg"
+     */
+    public static final String METADATA_FILENAME = "filename";
+
+    /**
+     * 元数据修改：内容类型
+     * <p>
+     * 用于元数据修改类插件，通过 {@code ctx.setMetadata(METADATA_CONTENT_TYPE, newType)} 修改MIME类型<br>
+     * 类型: String<br>
+     * 示例: "application/pdf"
+     */
+    public static final String METADATA_CONTENT_TYPE = "contentType";
+
     // ==================== Delivery 信息（衍生文件） ====================
 
     /**

@@ -1,6 +1,7 @@
 package tech.icc.filesrv.plugin.example;
 
 import tech.icc.filesrv.common.context.TaskContext;
+import tech.icc.filesrv.common.context.TaskContextKeys;
 import tech.icc.filesrv.common.spi.plugin.PluginResult;
 import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
 
@@ -96,7 +97,7 @@ public class HashVerifyPlugin implements SharedPlugin {
         }
 
         // 3. 获取服务端计算的哈希值
-        String serverHash = ctx.getString(TaskContext.KEY_FILE_HASH).orElse(null);
+        String serverHash = ctx.getString(TaskContextKeys.FILE_HASH).orElse(null);
         if (serverHash == null || serverHash.isBlank()) {
             return PluginResult.Failure.of("Server hash not available in context");
         }

@@ -1,6 +1,7 @@
 package tech.icc.filesrv.plugin.example;
 
 import tech.icc.filesrv.common.context.TaskContext;
+import tech.icc.filesrv.common.context.TaskContextKeys;
 import tech.icc.filesrv.common.spi.plugin.PluginResult;
 import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
 
@@ -77,8 +78,8 @@ public class RenamePlugin implements SharedPlugin {
         String pattern = ctx.getPluginString(PLUGIN_NAME, PARAM_PATTERN)
                 .orElse(DEFAULT_PATTERN);
 
-        String originalName = ctx.getString(TaskContext.KEY_FILENAME).orElse("unknown");
-        String fileHash = ctx.getString(TaskContext.KEY_FILE_HASH).orElse("");
+        String originalName = ctx.getString(TaskContextKeys.KEY_FILENAME).orElse("unknown");
+        String fileHash = ctx.getString(TaskContextKeys.FILE_HASH).orElse("");
 
         // 2. 解析原始文件名
         String baseName = getBaseName(originalName);
@@ -96,7 +97,7 @@ public class RenamePlugin implements SharedPlugin {
         newName = replaceDatePlaceholders(newName);
 
         // 4. 记录元数据变更（由 TaskService 在 callback 链完成后统一应用）
-        ctx.setMetadata(TaskContext.METADATA_FILENAME, newName);
+        ctx.setMetadata(TaskContextKeys.METADATA_FILENAME, newName);
 
         // 5. 返回成功，无需额外输出
         return PluginResult.Success.empty();

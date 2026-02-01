@@ -1,6 +1,7 @@
 package tech.icc.filesrv.plugin.example;
 
 import tech.icc.filesrv.common.context.TaskContext;
+import tech.icc.filesrv.common.context.TaskContextKeys;
 import tech.icc.filesrv.common.vo.task.DerivedFile;
 import tech.icc.filesrv.common.spi.plugin.PluginResult;
 import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
@@ -95,7 +96,7 @@ public class ThumbnailPlugin implements SharedPlugin {
         }
 
         // 3. 检查是否为图片类型
-        String contentType = ctx.getString(TaskContext.KEY_CONTENT_TYPE).orElse("");
+        String contentType = ctx.getString(TaskContextKeys.KEY_CONTENT_TYPE).orElse("");
         if (!contentType.startsWith("image/")) {
             // 非图片文件，跳过处理
             return PluginResult.Skip.of("Not an image file, skipping thumbnail generation");
