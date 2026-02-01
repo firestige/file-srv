@@ -19,6 +19,16 @@ spring:
   h2:
     console:
       enabled: false
+  
+  # 异步任务执行线程池配置
+  task:
+    execution:
+      pool:
+        core-size: 2
+        max-size: 4
+        queue-capacity: 100
+        thread-name-prefix: async-callback-
+        keep-alive: 60s
 
 # 文件服务配置
 file-srv:

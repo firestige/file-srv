@@ -2,6 +2,7 @@ package tech.icc.filesrv.core.infra.executor.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import tech.icc.filesrv.core.infra.executor.CallbackTaskPublisher;
@@ -12,8 +13,13 @@ import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Kafka 实现的 Callback 任务发布器
+ * Kafka implementation of callback task publisher.
+ * <p>
+ * This implementation is active in production environments only.
+ * Test environments use {@link SpringEventCallbackPublisher} instead.
+ * </p>
  */
+@Profile("!test")
 public class KafkaCallbackTaskPublisher implements CallbackTaskPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaCallbackTaskPublisher.class);

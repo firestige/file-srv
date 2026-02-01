@@ -1,21 +1,30 @@
 package tech.icc.filesrv.core.infra.executor;
 
 /**
- * Callback 任务发布器
+ * Callback task publisher - publishes callback tasks for asynchronous execution.
  * <p>
- * 负责将 callback 任务发布到 Kafka。
- * 设计要点：
+ * This interface abstracts the message publishing mechanism, supporting multiple
+ * implementations based on the deployment environment:
  * <ul>
- *   <li>Task 级别调度：一个 Task 只发布一条消息</li>
- *   <li>Consumer 从 DB 获取 currentCallbackIndex 实现断点恢复</li>
+ *   <li><strong>Production</strong>: {@code KafkaCallbackTaskPublisher} - publishes to Apache Kafka</li>
+ *   <li><strong>Test</strong>: {@code SpringEventCallbackPublisher} - publishes via Spring's {@code ApplicationEventPublisher}</li>
+ *   <li><strong>Alternative MQ</strong>: Can be implemented for RabbitMQ, RocketMQ, etc.</li>
+ * </ul>
+ * </p>
+ * 
+ * <p><strong>Design Principles:</strong></p>
+ * <ul>
+ *   <li><strong>Task-level scheduling</strong>: One task publishes one message</li>
+ *   <li><strong>Checkpoint recovery</strong>: Consumer retrieves {@code currentCallbackIndex} from DB to resume execution</li>
+ *   <li><strong>Environment isolation</strong>: Use {@code @Profile} to activate the appropriate implementation</li>
  * </ul>
  */
 public interface CallbackTaskPublisher {
 
     /**
-     * 发布 callback 任务
+     * Publish a callback task for asynchronous execution.
      *
-     * @param taskId 任务 ID
+     * @param taskId the unique task identifier
      */
     void publish(String taskId);
 }

@@ -3,6 +3,7 @@ package tech.icc.filesrv.core.infra.executor.impl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
@@ -20,10 +21,13 @@ import tech.icc.filesrv.core.infra.executor.message.DeadLetterMessage;
 import java.util.Optional;
 
 /**
- * Kafka Callback 任务消费者
+ * Kafka callback task consumer.
  * <p>
- * 负责消费 Kafka 消息并调用 CallbackChainRunner 执行。
+ * This consumer is active in production environments only.
+ * Test environments use {@link CallbackTaskEventListener} instead.
+ * </p>
  */
+@Profile("!test")
 public class KafkaCallbackTaskConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaCallbackTaskConsumer.class);
