@@ -318,6 +318,80 @@ public class TaskContext {
         return data.isEmpty();
     }
 
+    // ==================== 诊断与调试 (P3.13) ====================
+
+    /**
+     * 获取所有可用的键名
+     * <p>
+     * 用于调试和问题排查，快速查看 Context 中存储了哪些数据。
+     *
+     * @return 键名集合的不可变视图
+     */
+    public Set<String> getAvailableKeys() {
+        return Collections.unmodifiableSet(data.keySet());
+    }
+
+    /**
+     * 获取诊断信息
+     * <p>
+     * 提供 Context 的概览信息，便于调试和日志输出。
+     *
+     * @return 诊断信息 Map，包含以下字段：
+     *         <ul>
+     *           <li>totalKeys: 总键数量</li>
+     *           <li>taskId: 任务ID（如果存在）</li>
+     *           <li>taskStatus: 任务状态（如果存在）</li>
+     *           <li>fileName: 文件名（如果存在）</li>
+     *           <li>fileSize: 文件大小（如果存在）</li>
+     *           <li>metadataChanges: 元数据变更数量</li>
+     *           <li>derivedFiles: 衍生文件数量</li>
+     *           <li>builtinKeys: 内置键列表</li>
+     *           <li>pluginKeys: 插件键列表</li>
+     *         </ul>
+     */
+    public Map<String, Object> getDiagnosticInfo() {
+        Map<String, Object> info = new LinkedHashMap<>();
+        
+        // 基本统计
+        info.put("totalKeys", data.size());
+        
+        // 任务信息（使用 TaskContextKeys 常量）
+        getString(TaskContextKeys.TASK_ID).ifPresent(v -> info.put("taskId", v));
+        getString(TaskContextKeys.TASK_STATUS).ifPresent(v -> info.put("taskStatus", v));
+        
+        // 文件信息
+        getString(TaskContextKeys.KEY_FILENAME).ifPresent(v -> info.put("fileName", v));
+        getLong(TaskContextKeys.FILE_SIZE).ifPresent(v -> info.put("fileSize", v));
+        getString(TaskContextKeys.FILE_HASH).ifPresent(v -> info.put("fileHash", v));
+        
+        // 元数据变更统计
+        if (hasMetadataChanges()) {
+            info.put("metadataChanges", getMetadataChanges().size());
+        } else {
+            info.put("metadataChanges", 0);
+        }
+        
+        // 衍生文件统计
+        info.put("derivedFiles", getDerivedFiles().size());
+        
+        // 键分类
+        List<String> builtinKeys = new ArrayList<>();
+        List<String> pluginKeys = new ArrayList<>();
+        
+        for (String key : data.keySet()) {
+            if (isBuiltinKey(key) || key.startsWith(TaskContextKeys.TASK_ID.substring(0, 5))) {
+                builtinKeys.add(key);
+            } else {
+                pluginKeys.add(key);
+            }
+        }
+        
+        info.put("builtinKeys", builtinKeys);
+        info.put("pluginKeys", pluginKeys);
+        
+        return info;
+    }
+
     @Override
     public String toString() {
         return "TaskContext" + data;
