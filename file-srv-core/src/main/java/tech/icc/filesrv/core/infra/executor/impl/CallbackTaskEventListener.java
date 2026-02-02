@@ -3,9 +3,10 @@ package tech.icc.filesrv.core.infra.executor.impl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 import tech.icc.filesrv.common.vo.task.TaskStatus;
 import tech.icc.filesrv.core.domain.events.CallbackTaskEvent;
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
@@ -41,15 +42,15 @@ public class CallbackTaskEventListener {
     }
 
     /**
-     * Handle callback task events asynchronously.
+     * Handle callback task events asynchronously after transaction commit.
      * <p>
-     * This method is invoked when a {@link CallbackTaskEvent} is published.
-     * It loads the task from the repository and executes the callback chain.
+     * This method is invoked AFTER the transaction that published the event commits.
+     * This ensures the task status (PROCESSING) is visible in the database.
      * </p>
      *
      * @param event the callback task event
      */
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Async
     public void onCallbackTask(CallbackTaskEvent event) {
         String taskId = event.taskId();

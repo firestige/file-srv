@@ -30,6 +30,19 @@ public interface TaskRepository {
     Optional<TaskAggregate> findByTaskId(String taskId);
 
     /**
+     * 根据 ID 查询任务（使用悲观锁）
+     * <p>
+     * 使用数据库行锁（SELECT FOR UPDATE）防止并发修改冲突。
+     * 适用于需要长时间持有并修改task的场景（如callback链执行）。
+     * <p>
+     * 注意：必须在事务内调用，否则锁会立即释放。
+     *
+     * @param taskId 任务 ID
+     * @return 任务（如果存在）
+     */
+    Optional<TaskAggregate> findByTaskIdForUpdate(String taskId);
+
+    /**
      * 根据 fKey 查询任务列表
      *
      * @param fKey 用户文件标识

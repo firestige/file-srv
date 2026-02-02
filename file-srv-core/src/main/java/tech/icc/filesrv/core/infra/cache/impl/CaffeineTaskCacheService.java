@@ -4,7 +4,6 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
 import tech.icc.filesrv.core.infra.cache.TaskCacheService;
 
@@ -14,7 +13,6 @@ import java.util.Optional;
 /**
  * 基于 Caffeine 的本地任务缓存实现
  */
-@Service
 public class CaffeineTaskCacheService implements TaskCacheService {
 
     private static final Logger log = LoggerFactory.getLogger(CaffeineTaskCacheService.class);

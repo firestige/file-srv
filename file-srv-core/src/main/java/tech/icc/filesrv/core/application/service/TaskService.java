@@ -18,7 +18,6 @@ import tech.icc.filesrv.core.application.service.dto.TaskInfoDto;
 import tech.icc.filesrv.core.domain.events.TaskCompletedEvent;
 import tech.icc.filesrv.core.domain.events.TaskFailedEvent;
 import tech.icc.filesrv.core.domain.tasks.*;
-import tech.icc.filesrv.core.infra.cache.TaskCacheService;
 import tech.icc.filesrv.core.infra.cache.TaskIdValidator;
 import tech.icc.filesrv.core.infra.event.TaskEventPublisher;
 import tech.icc.filesrv.core.infra.executor.CallbackTaskPublisher;
@@ -32,7 +31,6 @@ import tech.icc.filesrv.common.spi.storage.UploadSession;
 import java.io.InputStream;
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * 任务服务
@@ -62,7 +60,6 @@ public class TaskService {
     private final TaskEventPublisher eventPublisher;
     private final CallbackTaskPublisher callbackPublisher;
     private final LocalFileManager localFileManager;
-    private final TaskCacheService cacheService;
     private final TaskIdValidator idValidator;
     private final FileService fileService;
 
@@ -72,7 +69,6 @@ public class TaskService {
                        TaskEventPublisher eventPublisher,
                        CallbackTaskPublisher callbackPublisher,
                        LocalFileManager localFileManager,
-                       TaskCacheService cacheService,
                        TaskIdValidator idValidator,
                        FileService fileService) {
         this.taskRepository = taskRepository;
@@ -81,7 +77,6 @@ public class TaskService {
         this.eventPublisher = eventPublisher;
         this.callbackPublisher = callbackPublisher;
         this.localFileManager = localFileManager;
-        this.cacheService = cacheService;
         this.idValidator = idValidator;
         this.fileService = fileService;
     }
@@ -128,12 +123,11 @@ public class TaskService {
         // 保存 sessionId，但保持 PENDING 状态（真正开始上传时才转为 IN_PROGRESS）
         task.updateSessionId(session.getSessionId());
 
-        // 保存任务
-        taskRepository.save(task);
+        // 保存任务并获取包含最新 version 的对象
+        task = taskRepository.save(task);
 
-        // 注册到布隆过滤器并缓存
+        // 注册到布隆过滤器
         idValidator.register(task.getTaskId());
-        cacheService.cacheTask(task);
 
         log.info("Task created: taskId={}, fKey={}, callbacks={}", task.getTaskId(), fKey, cfgs.stream().map(CallbackConfig::name).reduce(",", (a, b) -> a + b));
 
@@ -161,7 +155,7 @@ public class TaskService {
         // 如果是第一次上传分片（状态为 PENDING），则转为 IN_PROGRESS
         if (task.getStatus() == TaskStatus.PENDING) {
             task.startUpload(task.getSessionId(), getNodeId());
-            taskRepository.save(task);
+            task = taskRepository.save(task);
             log.debug("Task status changed to IN_PROGRESS: taskId={}", taskId);
         }
 
@@ -176,7 +170,7 @@ public class TaskService {
             session = storageAdapter.beginUpload(storagePath, task.getContentType());
             // 更新任务的 sessionId
             task.updateSessionId(session.getSessionId());
-            taskRepository.save(task);
+            task = taskRepository.save(task);
         }
 
         try {
@@ -186,8 +180,7 @@ public class TaskService {
             // 记录分片信息
             PartInfo partInfo = PartInfo.of(partNumber, etag, size);
             task.recordPart(partInfo);
-            taskRepository.save(task);
-            updateTaskCache(task);
+            task = taskRepository.save(task);
 
             log.debug("Part uploaded: taskId={}, partNumber={}, etag={}", taskId, partNumber, etag);
 
@@ -233,7 +226,7 @@ public class TaskService {
             session = storageAdapter.beginUpload(storagePath, contentType);
             // 更新任务的 sessionId
             task.updateSessionId(session.getSessionId());
-            taskRepository.save(task);
+            task = taskRepository.save(task);
         }
 
         try {
@@ -253,8 +246,7 @@ public class TaskService {
 
             // 更新任务状态
             task.completeUpload(finalPath, hash, totalSize, contentType, filename);
-            taskRepository.save(task);
-            updateTaskCache(task);
+            task = taskRepository.save(task);
 
             log.info("Upload completed: taskId={}, path={}, fKey={}", taskId, finalPath, task.getFKey());
 
@@ -271,8 +263,7 @@ public class TaskService {
         } catch (Exception e) {
             log.error("Complete upload failed: taskId={}", taskId, e);
             task.markFailed(e.getMessage());
-            taskRepository.save(task);
-            updateTaskCache(task);
+            task = taskRepository.save(task);
             publishFailedEvent(task);
             throw e;
         } finally {
@@ -295,8 +286,8 @@ public class TaskService {
         List<PartInfo> partInfos = task.getSortedParts();
         long totalSize = partInfos.stream().mapToLong(PartInfo::size).sum();
 
-        // 关键：使用任务中存储的 contentHash（客户端计算）
-        completeUpload(taskId, parts, task.getContentHash(), totalSize, task.getContentType(), task.getFilename());
+        // 关键：使用任务中存储的 hash（客户端计算的初始值）
+        completeUpload(taskId, parts, task.getHash(), totalSize, task.getContentType(), task.getFilename());
     }
 
     /**
@@ -338,8 +329,7 @@ public class TaskService {
 
         // 更新状态
         task.abort();
-        taskRepository.save(task);
-        updateTaskCache(task);
+        task = taskRepository.save(task);
 
         log.info("Task aborted: taskId={}, reason={}", taskId, reason);
 
@@ -410,7 +400,7 @@ public class TaskService {
     // ==================== 辅助方法 ====================
 
     /**
-     * 获取任务（带缓存和防护）
+     * 获取任务（带格式校验和防护）
      */
     private TaskAggregate getTaskOrThrow(String taskId) {
         // 1. 格式校验
@@ -424,50 +414,9 @@ public class TaskService {
             throw new TaskNotFoundException(taskId);
         }
 
-        // 3. 检查空值缓存（防止缓存穿透）
-        if (cacheService.isNullCached(taskId)) {
-            log.debug("Task is null-cached: taskId={}", taskId);
-            throw new TaskNotFoundException(taskId);
-        }
-
-        // 4. 缓存查询
-        Optional<TaskAggregate> cached = cacheService.getTask(taskId);
-        if (cached.isPresent()) {
-            log.debug("Task cache hit: taskId={}", taskId);
-            return cached.get();
-        }
-
-        // 5. 数据库查询
-        log.debug("Task cache miss, querying database: taskId={}", taskId);
-        TaskAggregate task = taskRepository.findByTaskId(taskId)
-                .orElseGet(() -> {
-                    // 缓存空值，防止重复穿透
-                    cacheService.cacheNull(taskId);
-                    return null;
-                });
-
-        if (task == null) {
-            throw new TaskNotFoundException(taskId);
-        }
-
-        // 6. 回填缓存
-        cacheService.cacheTask(task);
-
-        return task;
-    }
-
-    /**
-     * 获取任务并更新缓存（用于写操作后）
-     */
-    private void updateTaskCache(TaskAggregate task) {
-        cacheService.cacheTask(task);
-    }
-
-    /**
-     * 失效任务缓存
-     */
-    private void evictTaskCache(String taskId) {
-        cacheService.evictTask(taskId);
+        // 3. 查询数据库（缓存由 Repository 层处理）
+        return taskRepository.findByTaskId(taskId)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
     }
 
     private void validateCallbacks(List<CallbackConfig> cfgs) {

@@ -121,14 +121,33 @@ public class TaskContext {
     /**
      * 获取 Plugin 特定参数
      * <p>
-     * 参数格式: {@code {pluginName}.{paramKey}}
+     * 参数存储格式支持两种方式：
+     * <ul>
+     *   <li>嵌套 Map: key="pluginName" → value=Map{paramKey → paramValue}</li>
+     *   <li>扁平化: key="pluginName.paramKey" → value=paramValue</li>
+     * </ul>
+     * 优先尝试扁平化查找，如果失败则尝试从嵌套 Map 中查找。
      *
      * @param pluginName 插件名称
      * @param paramKey   参数 Key
      * @return 参数值
      */
+    @SuppressWarnings("unchecked")
     public Optional<Object> getPluginParam(String pluginName, String paramKey) {
-        return get(pluginName + "." + paramKey);
+        // 1. 尝试扁平化查找: pluginName.paramKey
+        Optional<Object> flatResult = get(pluginName + "." + paramKey);
+        if (flatResult.isPresent()) {
+            return flatResult;
+        }
+        
+        // 2. 尝试从嵌套 Map 中查找: pluginName → Map{paramKey → value}
+        Optional<Object> nestedMap = get(pluginName);
+        if (nestedMap.isPresent() && nestedMap.get() instanceof Map) {
+            Map<String, ?> params = (Map<String, ?>) nestedMap.get();
+            return Optional.ofNullable(params.get(paramKey));
+        }
+        
+        return Optional.empty();
     }
 
     /**

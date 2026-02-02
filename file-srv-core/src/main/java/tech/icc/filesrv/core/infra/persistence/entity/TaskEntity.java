@@ -135,6 +135,7 @@ public class TaskEntity {
                 .createdAt(task.getCreatedAt())
                 .expiresAt(task.getExpiresAt())
                 .completedAt(task.getCompletedAt())
+                .version(task.getVersion())
                 .build();
     }
 
@@ -162,6 +163,7 @@ public class TaskEntity {
         task.setCreatedAt(createdAt);
         task.setExpiresAt(expiresAt);
         task.setCompletedAt(completedAt);
+        task.setVersion(version);
 
         return task;
     }

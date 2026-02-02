@@ -35,7 +35,7 @@ public class FileReferenceEntity {
     @Column(name = "f_key", length = 36)
     private String fKey;
 
-    @Column(name = "content_hash", length = 32)
+    @Column(name = "content_hash", length = 64)
     private String contentHash;
 
     @Column(name = "filename", nullable = false, length = 255)

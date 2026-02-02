@@ -39,7 +39,7 @@ import java.util.stream.Collectors;
 public class FileInfoEntity {
 
     @Id
-    @Column(name = "content_hash", length = 32)
+    @Column(name = "content_hash", length = 64)
     private String contentHash;
 
     @Column(name = "size")

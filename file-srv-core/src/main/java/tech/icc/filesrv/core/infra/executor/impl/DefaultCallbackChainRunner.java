@@ -3,6 +3,7 @@ package tech.icc.filesrv.core.infra.executor.impl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import tech.icc.filesrv.common.context.TaskContext;
 import tech.icc.filesrv.common.spi.plugin.PluginResult;
 import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
@@ -79,7 +80,18 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
     }
 
     @Override
+    @Transactional
     public void run(TaskAggregate task) {
+        // IMPORTANT: 使用悲观锁重新加载task，防止并发修改冲突
+        // SELECT FOR UPDATE 确保在整个callback链执行期间独占访问此task
+        // 这样可以避免：
+        // 1. 其他线程（如GET请求）查询并缓存旧版本
+        // 2. 多个callback执行器同时修改同一个task
+        // 3. 乐观锁version冲突
+        final String taskId = task.getTaskId();
+        task = taskRepository.findByTaskIdForUpdate(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found: " + taskId));
+        
         TaskContext context = task.getContext();
 
         // 1. 准备本地文件（只下载一次）
@@ -103,12 +115,17 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
                 PluginResult result = executeWithLocalRetry(task.getTaskId(), callbackName, context, i);
 
                 // 4. 解释 PluginResult
-                handleResult(task, callbackName, result, context);
+                task = handleResult(task, callbackName, result, context);
+                
+                // CRITICAL: 更新 context 引用！
+                // handleResult 中调用 save() 返回新的 task 对象，其 context 也是新对象
+                // 必须更新引用，否则后续插件的输出会丢失
+                context = task.getContext();
             }
 
             // 5. 全部完成
             task.markCompleted();
-            taskRepository.save(task);
+            task = taskRepository.save(task);
             publishCompletedEvent(task);
             log.info("All callbacks completed: taskId={}", task.getTaskId());
 
@@ -121,8 +138,8 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
     /**
      * 处理 callback 执行结果
      */
-    private void handleResult(TaskAggregate task, String callbackName,
-                              PluginResult result, TaskContext context) {
+    private TaskAggregate handleResult(TaskAggregate task, String callbackName,
+                                       PluginResult result, TaskContext context) {
         if (result instanceof PluginResult.Success success) {
             // 记录执行前的衍生文件数量
             int beforeCount = context.getDerivedFiles().size();
@@ -139,13 +156,14 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
             
             // 推进并持久化（断点恢复关键）
             task.advanceCallback();
-            taskRepository.save(task);
+            task = taskRepository.save(task);
             log.debug("Callback succeeded: {}", callbackName);
+            return task;
 
         } else if (result instanceof PluginResult.Failure failure) {
             // 标记任务失败，停止链
             task.markFailed("Callback [" + callbackName + "] failed: " + failure.reason());
-            taskRepository.save(task);
+                task = taskRepository.save(task);
             publishFailedEvent(task);
             log.error("Callback failed: {} - {}", callbackName, failure.reason());
             // 不再继续执行，抛异常终止
@@ -159,8 +177,11 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
             // 跳过当前 callback，继续下一个
             log.info("Callback skipped: {} - {}", callbackName, skip.reason());
             task.advanceCallback();
-            taskRepository.save(task);
+            task = taskRepository.save(task);
+            return task;
         }
+
+        return task;
     }
 
     /**

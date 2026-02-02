@@ -28,7 +28,6 @@ public class TaskAggregate {
     private String sessionId;
     private String storagePath;
 
-    private String contentHash;
     private String hash;
     private Long totalSize;
     private String contentType;
@@ -44,6 +43,9 @@ public class TaskAggregate {
     private Instant createdAt;
     private Instant expiresAt;
     private Instant completedAt;
+
+    /** JPA 乐观锁版本号（用于并发控制） */
+    private Long version;
 
     // ==================== 构造 ====================
 
@@ -97,7 +99,7 @@ public class TaskAggregate {
                                        List<CallbackConfig> cfgs, Duration expireAfter) {
         String taskId = UUID.randomUUID().toString();
         TaskAggregate task = new TaskAggregate(taskId, fKey, cfgs, expireAfter);
-        task.contentHash = contentHash;
+        task.hash = contentHash;  // 客户端计算的hash作为初始值
         task.filename = filename;
         task.contentType = contentType;
         task.totalSize = size;
@@ -330,10 +332,6 @@ public class TaskAggregate {
         return sessionId;
     }
 
-    public String getContentHash() {
-        return contentHash;
-    }
-
     public String getStoragePath() {
         return storagePath;
     }
@@ -384,6 +382,10 @@ public class TaskAggregate {
 
     public Instant getCompletedAt() {
         return completedAt;
+    }
+
+    public Long getVersion() {
+        return version;
     }
 
     // ==================== Setters (for JPA) ====================
@@ -458,5 +460,9 @@ public class TaskAggregate {
 
     public void setCompletedAt(Instant completedAt) {
         this.completedAt = completedAt;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
     }
 }

@@ -36,3 +36,7 @@ file-srv:
     max-file-size: 10485760  # 10MB
   deduplication:
     enabled: false
+
+file-service:
+  cache:
+    expire-seconds: 1

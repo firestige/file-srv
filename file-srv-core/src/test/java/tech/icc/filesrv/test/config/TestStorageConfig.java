@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Primary;
 import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
 import tech.icc.filesrv.config.FileControllerConfig;
 import tech.icc.filesrv.core.domain.tasks.TaskRepository;
+import tech.icc.filesrv.core.infra.cache.TaskCacheService;
+import tech.icc.filesrv.core.infra.cache.impl.CaffeineTaskCacheService;
 import tech.icc.filesrv.core.infra.event.TaskEventPublisher;
 import tech.icc.filesrv.core.infra.executor.CallbackChainRunner;
 import tech.icc.filesrv.core.infra.executor.CallbackTaskPublisher;
@@ -137,41 +139,22 @@ public class TestStorageConfig {
     }
     
     /**
-     * 创建 Callback 任务发布器 Stub（模拟 Kafka 任务队列）
+     * 不再提供 CallbackTaskPublisher Bean
      * <p>
-     * <strong>设计决策：</strong> 此 Stub 替代真实的 Kafka 消息发布器，用于测试环境中模拟异步任务调度。
+     * 让 Spring 自动使用 {@link tech.icc.filesrv.core.infra.executor.impl.SpringEventCallbackPublisher}
+     * 来触发异步回调执行。这样可以真正执行回调链，而不是只记录发布。
      * <p>
-     * <strong>为什么需要这个 Stub：</strong>
+     * <strong>架构变更：</strong>
      * <ul>
-     *   <li><strong>隔离外部依赖：</strong>测试不依赖真实的 Kafka 集群，避免环境配置复杂度</li>
-     *   <li><strong>验证发布行为：</strong>可以验证消息是否被正确发布（isPublished），以及发布次数（getPublishedCount）</li>
-     *   <li><strong>同步测试：</strong>集成测试需要同步验证结果，不需要真实的异步消息队列</li>
-     *   <li><strong>轻量级：</strong>内存实现，无需额外资源，测试启动快速</li>
-     * </ul>
-     * <p>
-     * <strong>后期决策点：</strong>
-     * <ul>
-     *   <li><strong>保留：</strong>如果测试策略是"隔离外部依赖 + 快速反馈"，应保留此 Stub</li>
-     *   <li><strong>替换：</strong>如果需要端到端测试（E2E），可以引入 TestContainers + 真实 Kafka</li>
-     *   <li><strong>混合：</strong>集成测试用 Stub（快速），E2E 测试用真实 Kafka（全链路）</li>
-     * </ul>
-     * <p>
-     * <strong>当前架构：</strong>
-     * <ul>
-     *   <li>核心插件系统（CallbackChainRunner, PluginRegistry）使用真实实现</li>
-     *   <li>外部依赖（Kafka, 存储, Redis）使用 Stub</li>
-     *   <li>测试通过直接调用 {@code callbackRunner.run(task)} 验证插件执行</li>
+     *   <li>移除 CallbackTaskPublisherStub（只记录不执行）</li>
+     *   <li>使用 SpringEventCallbackPublisher（@Profile("test")，发布事件触发执行）</li>
+     *   <li>事件由 CallbackTaskEventListener 异步处理，自动执行回调链</li>
      * </ul>
      * 
-     * @return Callback 任务发布器 stub
-     * @see CallbackTaskPublisherStub
-     * @see tech.icc.filesrv.test.integration.PluginCallbackScenarioTest#shouldExecuteCompleteCallbackChainE2E()
+     * @see tech.icc.filesrv.core.infra.executor.impl.SpringEventCallbackPublisher
+     * @see tech.icc.filesrv.core.infra.executor.impl.CallbackTaskEventListener
      */
-    @Bean
-    @Primary
-    public CallbackTaskPublisher testCallbackTaskPublisher() {
-        return new CallbackTaskPublisherStub();
-    }
+    // Bean removed - using SpringEventCallbackPublisher instead
     
     /**
      * 可选：创建文件系统存储适配器（模拟 NFS/NAS）
@@ -197,7 +180,8 @@ public class TestStorageConfig {
 
     @Bean
     Path tempBaseDir() {
-        return Path.of("/");
+        // 使用系统临时目录下的专用子目录用于测试
+        return Path.of(System.getProperty("java.io.tmpdir"), "file-srv-test");
     }
 
     // ==================== 测试用插件 Bean ====================
@@ -271,6 +255,12 @@ public class TestStorageConfig {
                 new ExecutorProperties.RetryConfig(2, Duration.ofMillis(100), 2.0, Duration.ofSeconds(5)),
                 new ExecutorProperties.IdempotencyConfig(Duration.ofHours(1))
         );
+    }
+
+    @Bean
+    public TaskCacheService caffeineTaskCacheService() {
+        return new CaffeineTaskCacheService(
+                1000, Duration.ofSeconds(1));
     }
 
 //    /**
