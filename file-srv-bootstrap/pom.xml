@@ -26,6 +26,12 @@
 
         <dependency>
             <groupId>tech.icc</groupId>
+            <artifactId>file-srv-common</artifactId>
+            <version>${revision}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>tech.icc</groupId>
             <artifactId>file-srv-core</artifactId>
             <version>${revision}</version>
         </dependency>
@@ -54,5 +60,29 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <finalName>app</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <layout>ZIP</layout>
+                    <mainClass>tech.icc.filesrv.Bootstrap</mainClass>
+                    <manifestEntries>
+                        <Loader-Path>plugins/,plugins/*,adapters/,adapters/*,spi/,spi/*,aspect/,aspect/*</Loader-Path>
+                    </manifestEntries>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>
