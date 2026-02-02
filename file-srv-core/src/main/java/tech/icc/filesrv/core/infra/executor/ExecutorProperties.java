@@ -6,11 +6,14 @@ import java.time.Duration;
 
 /**
  * Callback 执行器配置
+ *
+ * @deprecated Moved to tech.icc.filesrv.common.config.ExecutorProperties.
  */
+@Deprecated
 @ConfigurationProperties(prefix = "file-service.executor")
 public record ExecutorProperties(
-        /** Kafka 配置 */
-        KafkaConfig kafka,
+        /** 消息队列配置（抽象，支持 Kafka/RocketMQ 等） */
+        MessageQueueConfig messageQueue,
 
         /** 超时配置 */
         TimeoutConfig timeout,
@@ -23,28 +26,31 @@ public record ExecutorProperties(
 ) {
 
     public ExecutorProperties {
-        if (kafka == null) kafka = new KafkaConfig(null, null, null, 0);
+        if (messageQueue == null) messageQueue = new MessageQueueConfig(null, null, null, 0);
         if (timeout == null) timeout = new TimeoutConfig(null, null, null);
         if (retry == null) retry = new RetryConfig(0, null, 0, null);
         if (idempotency == null) idempotency = new IdempotencyConfig(null);
     }
 
     /**
-     * Kafka 配置
+     * 消息队列配置（抽象）
+     * <p>
+     * 通用消息队列配置，适用于 Kafka、RocketMQ 等消息中间件。
+     * 具体中间件的特有配置应放在各自 SPI 模块中。
      */
-    public record KafkaConfig(
+    public record MessageQueueConfig(
             /** 任务 topic */
             String topic,
             /** 死信 topic */
-            String dltTopic,
+            String deadLetterTopic,
             /** 消费者组 */
             String consumerGroup,
             /** 每节点并发数 */
             int concurrency
     ) {
-        public KafkaConfig {
+        public MessageQueueConfig {
             if (topic == null || topic.isBlank()) topic = "file-callback-tasks";
-            if (dltTopic == null || dltTopic.isBlank()) dltTopic = "file-callback-tasks-dlt";
+            if (deadLetterTopic == null || deadLetterTopic.isBlank()) deadLetterTopic = "file-callback-tasks-dlt";
             if (consumerGroup == null || consumerGroup.isBlank()) consumerGroup = "file-callback-executor";
             if (concurrency <= 0) concurrency = 4;
         }

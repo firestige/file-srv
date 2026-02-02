@@ -6,14 +6,14 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import tech.icc.filesrv.core.domain.events.CallbackTaskEvent;
-import tech.icc.filesrv.core.infra.executor.CallbackTaskPublisher;
+import tech.icc.filesrv.common.spi.executor.CallbackTaskPublisher;
 
 /**
  * Spring Event implementation of callback task publisher.
  * <p>
  * This implementation is active in test environments only, publishing events
  * via Spring's {@link ApplicationEventPublisher} for local asynchronous processing.
- * Production environments use {@link KafkaCallbackTaskPublisher} instead.
+ * Production environments use {@link tech.icc.filesrv.spi.kafka.executor.KafkaCallbackTaskPublisher} instead.
  * </p>
  * <p>
  * Events are processed by {@link CallbackTaskEventListener} which executes

@@ -23,7 +23,7 @@ import java.util.Optional;
  * separate thread pool configured in application-test.yml.
  * </p>
  * <p>
- * Production environments use {@link KafkaCallbackTaskConsumer} instead.
+ * Production environments use {@link tech.icc.filesrv.spi.kafka.executor.KafkaCallbackTaskConsumer} instead.
  * </p>
  */
 @Component

@@ -9,7 +9,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import tech.icc.filesrv.common.vo.file.FileRelations;
 import tech.icc.filesrv.common.vo.task.DerivedFile;
-import tech.icc.filesrv.core.domain.events.DerivedFilesAddedEvent;
+import tech.icc.filesrv.common.domain.events.DerivedFilesAddedEvent;
 import tech.icc.filesrv.core.infra.persistence.entity.FileRelationEntity;
 import tech.icc.filesrv.core.infra.persistence.repository.FileRelationRepository;
 

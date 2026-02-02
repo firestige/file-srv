@@ -9,6 +9,8 @@ import java.time.Instant;
  * <p>
  * 当上传任务失败、中止或超时时发布到 Kafka。
  *
+ * @deprecated Moved to tech.icc.filesrv.common.domain.events.TaskFailedEvent.
+ *
  * @param taskId             任务 ID
  * @param fKey               用户文件标识
  * @param finalStatus        最终状态 (FAILED / ABORTED / EXPIRED)
@@ -16,6 +18,7 @@ import java.time.Instant;
  * @param lastCallbackIndex  失败时执行到第几个 callback (-1 表示上传阶段失败)
  * @param failedAt           失败时间
  */
+@Deprecated
 public record TaskFailedEvent(
         String taskId,
         String fKey,

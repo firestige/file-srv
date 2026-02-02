@@ -12,7 +12,10 @@ import java.time.Instant;
  * @param failureReason     失败原因
  * @param failedAt          失败时间
  * @param failedNodeId      失败节点 ID
+ *
+ * @deprecated Moved to tech.icc.filesrv.common.executor.message.DeadLetterMessage.
  */
+@Deprecated
 public record DeadLetterMessage(
         String taskId,
         String originalMessageId,

@@ -18,7 +18,10 @@ import java.util.UUID;
  * @param taskId    任务 ID
  * @param createdAt 消息创建时间
  * @param deadline  消息过期截止时间
+ *
+ * @deprecated Moved to tech.icc.filesrv.common.executor.message.CallbackTaskMessage.
  */
+@Deprecated
 public record CallbackTaskMessage(
         String messageId,
         String taskId,

@@ -12,11 +12,14 @@ import java.util.List;
  * 事件监听器会为每个衍生文件创建 FileRelation 记录，建立双向引用。
  * </p>
  *
+ * @deprecated Moved to tech.icc.filesrv.common.domain.events.DerivedFilesAddedEvent.
+ *
  * @param taskId          任务 ID
  * @param sourceFkey      源文件 fKey（生成衍生文件的原始文件）
  * @param newDerivedFiles 新添加的衍生文件列表
  * @param timestamp       事件发生时间
  */
+@Deprecated
 public record DerivedFilesAddedEvent(
         String taskId,
         String sourceFkey,

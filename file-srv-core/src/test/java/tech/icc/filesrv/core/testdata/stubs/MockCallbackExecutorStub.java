@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
 import tech.icc.filesrv.core.infra.executor.CallbackChainRunner;
-import tech.icc.filesrv.core.infra.executor.CallbackTaskPublisher;
+import tech.icc.filesrv.common.spi.executor.CallbackTaskPublisher;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

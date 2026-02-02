@@ -2,10 +2,10 @@ package tech.icc.filesrv.core.infra.event.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import tech.icc.filesrv.core.domain.events.DerivedFilesAddedEvent;
-import tech.icc.filesrv.core.domain.events.TaskCompletedEvent;
-import tech.icc.filesrv.core.domain.events.TaskFailedEvent;
-import tech.icc.filesrv.core.infra.event.TaskEventPublisher;
+import tech.icc.filesrv.common.domain.events.DerivedFilesAddedEvent;
+import tech.icc.filesrv.common.domain.events.TaskCompletedEvent;
+import tech.icc.filesrv.common.domain.events.TaskFailedEvent;
+import tech.icc.filesrv.common.spi.event.TaskEventPublisher;
 
 /**
  * 日志事件发布器（Kafka 不可用时的降级实现）

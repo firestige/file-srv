@@ -9,20 +9,20 @@ import tech.icc.filesrv.common.spi.plugin.PluginResult;
 import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
 import tech.icc.filesrv.common.vo.task.CallbackConfig;
 import tech.icc.filesrv.common.vo.task.DerivedFile;
-import tech.icc.filesrv.core.domain.events.DerivedFilesAddedEvent;
-import tech.icc.filesrv.core.domain.events.TaskCompletedEvent;
-import tech.icc.filesrv.core.domain.events.TaskFailedEvent;
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
 import tech.icc.filesrv.core.domain.tasks.TaskRepository;
-import tech.icc.filesrv.core.infra.event.TaskEventPublisher;
 import tech.icc.filesrv.core.infra.executor.CallbackChainRunner;
-import tech.icc.filesrv.core.infra.executor.ExecutorProperties;
+import tech.icc.filesrv.common.config.ExecutorProperties;
 import tech.icc.filesrv.core.infra.executor.exception.CallbackExecutionException;
 import tech.icc.filesrv.core.infra.executor.exception.CallbackTimeoutException;
 import tech.icc.filesrv.core.infra.file.LocalFileManager;
 import tech.icc.filesrv.core.infra.plugin.PluginRegistry;
 import tech.icc.filesrv.core.callback.PluginStorageService;
 import tech.icc.filesrv.common.spi.plugin.PluginStorageServiceAware;
+import tech.icc.filesrv.common.domain.events.DerivedFilesAddedEvent;
+import tech.icc.filesrv.common.domain.events.TaskCompletedEvent;
+import tech.icc.filesrv.common.domain.events.TaskFailedEvent;
+import tech.icc.filesrv.common.spi.event.TaskEventPublisher;
 
 import java.io.IOException;
 import java.net.ConnectException;
@@ -54,7 +54,6 @@ import java.util.concurrent.TimeoutException;
 public class DefaultCallbackChainRunner implements CallbackChainRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultCallbackChainRunner.class);
-
     private final TaskRepository taskRepository;
     private final PluginRegistry pluginRegistry;
     private final LocalFileManager localFileManager;
@@ -62,7 +61,6 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
     private final ExecutorService timeoutExecutor;
     private final ExecutorProperties properties;
     private final PluginStorageService pluginStorageService;
-
     public DefaultCallbackChainRunner(TaskRepository taskRepository,
                                        PluginRegistry pluginRegistry,
                                        LocalFileManager localFileManager,

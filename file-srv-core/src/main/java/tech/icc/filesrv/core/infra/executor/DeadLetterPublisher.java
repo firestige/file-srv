@@ -1,18 +1,8 @@
 package tech.icc.filesrv.core.infra.executor;
 
-import tech.icc.filesrv.core.infra.executor.message.DeadLetterMessage;
-
 /**
- * 死信发布器
- * <p>
- * 负责将最终失败的任务发送到死信队列。
+ * @deprecated Moved to tech.icc.filesrv.common.spi.executor.DeadLetterPublisher.
  */
-public interface DeadLetterPublisher {
-
-    /**
-     * 发布死信消息
-     *
-     * @param message 死信消息
-     */
-    void publish(DeadLetterMessage message);
+@Deprecated
+public interface DeadLetterPublisher extends tech.icc.filesrv.common.spi.executor.DeadLetterPublisher {
 }

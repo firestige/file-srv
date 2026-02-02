@@ -1,10 +1,10 @@
 package tech.icc.filesrv.test.support.stub;
 
 import lombok.Getter;
-import tech.icc.filesrv.core.domain.events.DerivedFilesAddedEvent;
-import tech.icc.filesrv.core.domain.events.TaskCompletedEvent;
-import tech.icc.filesrv.core.domain.events.TaskFailedEvent;
-import tech.icc.filesrv.core.infra.event.TaskEventPublisher;
+import tech.icc.filesrv.common.domain.events.DerivedFilesAddedEvent;
+import tech.icc.filesrv.common.domain.events.TaskCompletedEvent;
+import tech.icc.filesrv.common.domain.events.TaskFailedEvent;
+import tech.icc.filesrv.common.spi.event.TaskEventPublisher;
 
 import java.util.ArrayList;
 import java.util.List;

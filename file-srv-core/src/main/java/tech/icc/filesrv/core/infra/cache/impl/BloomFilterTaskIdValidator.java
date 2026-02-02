@@ -3,7 +3,7 @@ package tech.icc.filesrv.core.infra.cache.impl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import tech.icc.filesrv.core.infra.cache.TaskIdValidator;
+import tech.icc.filesrv.common.spi.cache.TaskIdValidator;
 
 import java.util.BitSet;
 import java.util.UUID;

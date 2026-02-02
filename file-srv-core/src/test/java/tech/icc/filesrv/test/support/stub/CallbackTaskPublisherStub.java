@@ -1,7 +1,7 @@
 package tech.icc.filesrv.test.support.stub;
 
 import lombok.Getter;
-import tech.icc.filesrv.core.infra.executor.CallbackTaskPublisher;
+import tech.icc.filesrv.common.spi.executor.CallbackTaskPublisher;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.List;

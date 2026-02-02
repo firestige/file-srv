@@ -1,34 +1,8 @@
 package tech.icc.filesrv.core.infra.event;
 
-import tech.icc.filesrv.core.domain.events.DerivedFilesAddedEvent;
-import tech.icc.filesrv.core.domain.events.TaskCompletedEvent;
-import tech.icc.filesrv.core.domain.events.TaskFailedEvent;
-
 /**
- * 任务事件发布器
- * <p>
- * 将任务生命周期事件发布到 Kafka。
+ * @deprecated Moved to tech.icc.filesrv.common.spi.event.TaskEventPublisher.
  */
-public interface TaskEventPublisher {
-
-    /**
-     * 发布任务完成事件
-     *
-     * @param event 完成事件
-     */
-    void publishCompleted(TaskCompletedEvent event);
-
-    /**
-     * 发布任务失败事件
-     *
-     * @param event 失败事件
-     */
-    void publishFailed(TaskFailedEvent event);
-
-    /**
-     * 发布衍生文件添加事件
-     *
-     * @param event 衍生文件添加事件
-     */
-    void publishDerivedFilesAdded(DerivedFilesAddedEvent event);
+@Deprecated
+public interface TaskEventPublisher extends tech.icc.filesrv.common.spi.event.TaskEventPublisher {
 }

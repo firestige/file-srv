@@ -11,6 +11,8 @@ import java.util.Map;
  * <p>
  * 当上传任务及所有 callback 执行成功后发布到 Kafka。
  *
+ * @deprecated Moved to tech.icc.filesrv.common.domain.events.TaskCompletedEvent.
+ *
  * @param taskId         任务 ID
  * @param fKey           用户文件标识
  * @param storagePath    存储路径
@@ -22,6 +24,7 @@ import java.util.Map;
  * @param pluginOutputs  各 Plugin 的输出
  * @param completedAt    完成时间
  */
+@Deprecated
 public record TaskCompletedEvent(
         String taskId,
         String fKey,

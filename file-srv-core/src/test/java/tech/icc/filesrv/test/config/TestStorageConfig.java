@@ -5,20 +5,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
 import tech.icc.filesrv.config.FileControllerConfig;
-import tech.icc.filesrv.core.domain.tasks.TaskRepository;
 import tech.icc.filesrv.core.infra.cache.TaskCacheService;
 import tech.icc.filesrv.core.infra.cache.impl.CaffeineTaskCacheService;
-import tech.icc.filesrv.core.infra.event.TaskEventPublisher;
-import tech.icc.filesrv.core.infra.executor.CallbackChainRunner;
-import tech.icc.filesrv.core.infra.executor.CallbackTaskPublisher;
-import tech.icc.filesrv.core.infra.executor.ExecutorProperties;
-import tech.icc.filesrv.core.infra.executor.impl.DefaultCallbackChainRunner;
-import tech.icc.filesrv.core.infra.file.LocalFileManager;
-import tech.icc.filesrv.core.infra.plugin.PluginRegistry;
+import tech.icc.filesrv.common.spi.event.TaskEventPublisher;
+import tech.icc.filesrv.common.config.ExecutorProperties;
 import tech.icc.filesrv.test.support.plugin.TestHashVerifyPlugin;
 import tech.icc.filesrv.test.support.plugin.TestRenamePlugin;
 import tech.icc.filesrv.test.support.plugin.TestThumbnailPlugin;
-import tech.icc.filesrv.test.support.stub.CallbackTaskPublisherStub;
 import tech.icc.filesrv.test.support.stub.ObjectStorageServiceStub;
 import tech.icc.filesrv.test.support.stub.TaskEventPublisherStub;
 
@@ -250,7 +243,7 @@ public class TestStorageConfig {
     @Bean
     public ExecutorProperties testExecutorProperties() {
         return new ExecutorProperties(
-                new ExecutorProperties.KafkaConfig("test-topic", "test-dlt", "test-group", 1),
+                new ExecutorProperties.MessageQueueConfig("test-topic", "test-dlt", "test-group", 1),
                 new ExecutorProperties.TimeoutConfig(Duration.ofSeconds(30), Duration.ofMinutes(5), Duration.ofHours(1)),
                 new ExecutorProperties.RetryConfig(2, Duration.ofMillis(100), 2.0, Duration.ofSeconds(5)),
                 new ExecutorProperties.IdempotencyConfig(Duration.ofHours(1))
