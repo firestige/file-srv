@@ -490,8 +490,8 @@ public class GeneratedTaskContextKeys {
 
 | # | 任务 | 文件 | 状态 | 优先级 | 预估工时 |
 |---|------|------|------|--------|---------|
-| 13.1 | 添加 getAvailableKeys() | `TaskContext.java` | ⬜ | [应该] | 0.5h |
-| 13.2 | 添加 getDiagnosticInfo() | `TaskContext.java` | ⬜ | [应该] | 1h |
+| 13.1 | 添加 getAvailableKeys() | `TaskContext.java` | ✅ | [应该] | 0.5h |
+| 13.2 | 添加 getDiagnosticInfo() | `TaskContext.java` | ✅ | [应该] | 1h |
 | 13.3 | 添加 getHistory() | `TaskContext.java` | ⬜ | [可选] | 2h |
 | 13.4 | 添加 validate() 方法 | `TaskContext.java` | ⬜ | [可选] | 1h |
 
@@ -644,17 +644,17 @@ public class DefaultCallbackChainRunner {
 
 ### [应该] 完成项
 
-- [ ] @ContextKey 注解处理器工作正常
-- [ ] 编译时自动生成常量类
-- [ ] getAvailableKeys() 和 getDiagnosticInfo() 可用
+- [x] getAvailableKeys() 和 getDiagnosticInfo() 可用
+- [ ] @ContextKey 注解处理器工作正常（阶段12待实施）
+- [ ] 编译时自动生成常量类（阶段12待实施）
 - [ ] 单元测试覆盖新增功能
 
 ### [可选] 完成项
 
 - [ ] getHistory() 历史记录功能
 - [ ] validate() 上下文验证
-- [ ] OpenTelemetry 分布式追踪集成
-- [ ] Jaeger/Zipkin 可视化 callback 链
+- [ ] OpenTelemetry 分布式追踪集成（阶段14）
+- [ ] Jaeger/Zipkin 可视化 callback 链（阶段14）
 
 ---
 
@@ -879,12 +879,12 @@ file-srv-common/src/main/java/tech/icc/filesrv/common/
 - **待完成项**：单元测试（统一编写）、P1 Redis 缓存（延后）
 
 **P3 阶段**（长期优化）：
-- **阶段 12**：0/4 任务完成 (0%，注解驱动）
-- **阶段 13**：0/4 任务完成 (0%，诊断调试）
-- **阶段 14**：0/3 任务完成 (0%，分布式追踪，可选）
-- **总计 [应该] 任务**：0/8 完成 (0%)
+- **阶段 12**：0/4 任务完成 (0%，注解驱动，待实施）
+- **阶段 13**：2/4 任务完成 (50%，诊断调试，核心功能已完成✅）
+- **阶段 14**：0/3 任务完成 (0%，分布式追踪，可选，待实施）
+- **总计 [应该] 任务**：2/8 完成 (25%)
 - **总计 [可选] 任务**：0/5 完成 (0%)
-- **预估工期**：3-5 天
+- **预估剩余工期**：2-4 天（阶段12+14）
 
 ---
 
@@ -894,27 +894,32 @@ file-srv-common/src/main/java/tech/icc/filesrv/common/
 - ✅ P0：TaskContext 元数据注入、FileRelations 自动维护
 - ✅ P1：生产就绪优化、可观测性增强
 - ✅ P2：开发体验优化、插件存储服务
+- 🔄 P3：阶段13（诊断调试）已完成核心功能
 
-**待规划任务**：
-1. **单元测试统一编写**（所有 P0/P1/P2 阶段，待所有功能完成后）
+**最新完成**（2026-02-01）：
+- ✅ P3.13.1: getAvailableKeys() - 返回所有可用键名
+- ✅ P3.13.2: getDiagnosticInfo() - 返回详细诊断信息
+- ✅ Commit: `6c6054f` - feat(P3.13): 诊断与调试功能 - TaskContext 运行时诊断
 
-2. **P3 阶段任务**（长期优化，预计 3-5 天）：
-   - **阶段 12：注解驱动**（4 个任务，预估 6h）
-     - 创建 @ContextKey 注解
-     - 实现注解处理器（JavaPoet 生成代码）
-     - 配置 SPI
-     - 编译时键名验证
-   - **阶段 13：诊断与调试**（4 个任务，预估 4.5h）
-     - getAvailableKeys()：枚举所有键名
-     - getDiagnosticInfo()：运行时诊断信息
-     - getHistory()：修改历史记录（可选）
-     - validate()：上下文验证（可选）
-   - **阶段 14：分布式追踪**（3 个任务，预估 5.5h）（可选）
-     - OpenTelemetry 集成
-     - TaskContext Span 传播
-     - Jaeger/Zipkin 可视化
+**待实施任务**：
+1. **P3.13.3-13.4（可选）**：
+   - getHistory()：修改历史记录功能
+   - validate()：上下文验证功能
 
-3. **P4 及后续**（根据业务需求）：
+2. **P3.12 注解驱动（应该）**：
+   - 创建 @ContextKey 注解
+   - 实现注解处理器（JavaPoet）
+   - 配置 SPI
+   - 编译时键名验证
+
+3. **P3.14 分布式追踪（可选）**：
+   - OpenTelemetry 集成
+   - TaskContext Span 传播
+   - Jaeger/Zipkin 可视化
+
+4. **单元测试**（所有 P0/P1/P2/P3 功能，待统一编写）
+
+5. **P4 及后续**（根据业务需求）：
    - Context 快照与回滚
    - Context 序列化与持久化
    - Multi-tenancy 支持
@@ -949,14 +954,17 @@ file-srv-common/src/main/java/tech/icc/filesrv/common/
 | 日期 | 任务 | 问题描述 | 解决方案 | 状态 |
 |------|------|---------|---------|------|
 | 2026-02-01 | P0.3.1.4 | TaskAggregate 不应依赖 Repository，违反 DDD 分层 | 采用领域事件方案 C，通过 FileRelationsEventHandler 监听 DerivedFilesAddedEvent | ✅ 已解决 |
-2:15 | P1.8 可观测性增强提交完成（88833b5），P1 阶段全部完成 | AI |
-| 2026-02-01 1
+
 ---
 
 ## 变更历史
 
 | 日期 | 变更内容 | 操作者 |
 |------|---------|--------|
+| 2026-02-01 13:08 | P3.13 代码提交完成（6c6054f），诊断调试功能核心部分完成 | AI |
+| 2026-02-01 12:37 | P2 代码提交完成（7d3e057），更新进度文档，P2 阶段全部完成 | AI |
+| 2026-02-01 12:30 | P2.10 代码提交完成（98abcab），插件存储服务集成 | AI |
+| 2026-02-01 12:15 | P1.8 可观测性增强提交完成（88833b5），P1 阶段全部完成 | AI |
 | 2026-02-01 11:30 | P1 代码提交完成（b204e15），更新进度文档 | AI |
 | 2026-02-01 11:20 | 添加 P1 任务规划（4 个阶段，预估工时 42h） | AI |
 | 2026-02-01 11:15 | P0 代码提交完成（c26a9b5） | AI |

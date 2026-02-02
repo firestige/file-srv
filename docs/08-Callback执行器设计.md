@@ -1117,3 +1117,304 @@ file-srv-core/src/main/java/tech/icc/filesrv/core/infra/executor/
 3. **监控告警**：集成 Prometheus metrics，Grafana 面板
 4. **管理接口**：提供暂停/恢复消费、查询队列深度等 API
 5. **分布式追踪**：集成 Sleuth/Zipkin 追踪 callback 执行链路
+
+## 九、插件存储服务集成（P2.10）
+
+### 9.1 设计背景
+
+Callback 插件经常需要：
+- **上传派生文件**（如缩略图、转码视频）
+- **下载其他文件**进行组合处理
+- **删除临时文件**
+- **生成访问 URL** 供外部系统使用
+
+如果每个插件都直接依赖 `StorageAdapter`，会导致：
+1. 插件与基础设施层紧耦合
+2. 测试困难（需要 mock StorageAdapter）
+3. 插件作者需要了解存储层细节（分片策略、路径生成等）
+
+### 9.2 PluginStorageService 设计
+
+**核心理念**：为插件提供**简化的存储服务 API**，隐藏底层存储细节。
+
+```java
+package tech.icc.filesrv.common.plugin;
+
+/**
+ * 插件存储服务接口
+ * <p>
+ * 为 Callback 插件提供简化的存储操作能力，隐藏底层 StorageAdapter 细节。
+ * 插件通过此服务可以：上传派生文件、下载其他文件、删除文件、生成临时 URL。
+ */
+public interface PluginStorageService {
+
+    /**
+     * 上传大文件（自动选择单次/分片上传）
+     *
+     * @param inputStream 文件流
+     * @param fKey        文件键（UUID v7）
+     * @param filename    文件名
+     * @param size        文件大小
+     * @return 存储结果
+     */
+    StorageResult uploadLargeFile(
+        InputStream inputStream,
+        String fKey,
+        String filename,
+        long size
+    ) throws IOException;
+
+    /**
+     * 下载文件到本地
+     *
+     * @param fKey    文件键
+     * @param localPath 本地路径
+     * @return 本地文件
+     */
+    File downloadFile(String fKey, Path localPath) throws IOException;
+
+    /**
+     * 删除文件
+     *
+     * @param fKey 文件键
+     */
+    void deleteFile(String fKey) throws IOException;
+
+    /**
+     * 生成临时访问 URL
+     *
+     * @param fKey     文件键
+     * @param duration 有效期
+     * @return 预签名 URL
+     */
+    String getTemporaryUrl(String fKey, Duration duration);
+}
+```
+
+### 9.3 Aware 模式注入（P2.10）
+
+**问题**：如何让插件获得 `PluginStorageService` 实例，同时保持 TaskContext 的职责单一性？
+
+**解决方案**：采用 **Spring Boot ApplicationAware 模式**。
+
+#### Aware 接口定义
+
+```java
+package tech.icc.filesrv.common.plugin;
+
+/**
+ * 插件存储服务感知接口
+ * <p>
+ * 实现此接口的插件将在执行前被注入 PluginStorageService 实例。
+ * 遵循 Spring Boot ApplicationContextAware 等 Aware 接口的设计模式。
+ */
+public interface PluginStorageServiceAware {
+
+    /**
+     * 设置插件存储服务
+     * <p>
+     * 此方法由 CallbackChainRunner 在执行插件前调用。
+     *
+     * @param service 插件存储服务实例（非空）
+     */
+    void setPluginStorageService(Object service);
+}
+```
+
+#### DefaultCallbackChainRunner 注入逻辑
+
+```java
+@Component
+@RequiredArgsConstructor
+public class DefaultCallbackChainRunner implements CallbackChainRunner {
+
+    private final PluginStorageService pluginStorageService;
+    private final PluginRegistry pluginRegistry;
+    private final ApplicationEventPublisher applicationEventPublisher;
+
+    @Override
+    public TaskContext executeCallbacks(
+        TaskAggregate aggregate,
+        Path localFilePath
+    ) {
+        // 创建 TaskContext
+        TaskContext context = TaskContext.create();
+        
+        // 注入核心元数据（P0.2）
+        injectMetadata(context, aggregate, localFilePath);
+
+        // 获取插件链
+        List<SharedPlugin> plugins = aggregate.callbackChain().stream()
+            .map(pluginRegistry::getPlugin)
+            .toList();
+
+        // 执行插件链
+        for (SharedPlugin plugin : plugins) {
+            
+            // ✅ P2.10: Aware 模式注入
+            if (plugin instanceof PluginStorageServiceAware aware) {
+                aware.setPluginStorageService(pluginStorageService);
+            }
+
+            // 执行插件
+            PluginResult result = plugin.apply(context);
+
+            // 处理结果...
+        }
+
+        // 发布派生文件事件（P0.3）
+        publishDerivedFilesEvent(context, aggregate);
+
+        return context;
+    }
+}
+```
+
+### 9.4 插件实现示例
+
+```java
+/**
+ * 缩略图生成插件
+ * 实现 PluginStorageServiceAware 获得存储服务能力
+ */
+public class ThumbnailPlugin implements SharedPlugin, PluginStorageServiceAware {
+
+    private PluginStorageService storageService;
+
+    @Override
+    public void setPluginStorageService(Object service) {
+        this.storageService = (PluginStorageService) service;
+    }
+
+    @Override
+    public PluginResult apply(TaskContext context) {
+        try {
+            // 1. 获取源文件路径
+            String localPath = context.getString(TaskContextKeys.LOCAL_FILE_PATH);
+            
+            // 2. 生成缩略图
+            File thumbnail = generateThumbnail(new File(localPath));
+            
+            // 3. 上传缩略图（使用 PluginStorageService）
+            String thumbnailKey = UUID.randomUUID().toString();
+            StorageResult result = storageService.uploadLargeFile(
+                new FileInputStream(thumbnail),
+                thumbnailKey,
+                "thumbnail.jpg",
+                thumbnail.length()
+            );
+            
+            // 4. 记录派生文件（触发 FileRelations 更新）
+            context.addToList(TaskContextKeys.DERIVED_FILE_KEYS, thumbnailKey);
+            
+            // 5. 返回成功
+            return PluginResult.success(Map.of(
+                "thumbnailKey", thumbnailKey,
+                "thumbnailUrl", storageService.getTemporaryUrl(
+                    thumbnailKey, 
+                    Duration.ofHours(1)
+                )
+            ));
+            
+        } catch (IOException e) {
+            return PluginResult.failure("Thumbnail generation failed: " + e.getMessage());
+        }
+    }
+}
+```
+
+### 9.5 DefaultPluginStorageService 实现（P2.10）
+
+```java
+@Component
+@RequiredArgsConstructor
+public class DefaultPluginStorageService implements PluginStorageService {
+
+    private final StorageAdapter storageAdapter;
+    private final FileMetadataRepository metadataRepository;
+    
+    // 5MB 阈值，超过则使用分片上传
+    private static final long MULTIPART_THRESHOLD = 5 * 1024 * 1024;
+
+    @Override
+    public StorageResult uploadLargeFile(
+        InputStream inputStream,
+        String fKey,
+        String filename,
+        long size
+    ) throws IOException {
+        
+        if (size > MULTIPART_THRESHOLD) {
+            // 使用分片上传
+            String uploadId = storageAdapter.initiateMultipartUpload(fKey, filename);
+            // ... 分片上传逻辑 ...
+            return storageAdapter.completeMultipartUpload(fKey, uploadId, parts);
+        } else {
+            // 使用单次上传
+            return storageAdapter.uploadFile(inputStream, fKey, filename, size);
+        }
+    }
+
+    @Override
+    public File downloadFile(String fKey, Path localPath) throws IOException {
+        // 1. 查询元数据获取 storagePath
+        FileMetadataEntity metadata = metadataRepository.findByFKey(fKey)
+            .orElseThrow(() -> new FileNotFoundException(fKey));
+        
+        // 2. 下载到本地
+        storageAdapter.downloadFile(metadata.getStoragePath(), localPath);
+        
+        return localPath.toFile();
+    }
+
+    @Override
+    public void deleteFile(String fKey) throws IOException {
+        FileMetadataEntity metadata = metadataRepository.findByFKey(fKey)
+            .orElseThrow(() -> new FileNotFoundException(fKey));
+        
+        storageAdapter.deleteFile(metadata.getStoragePath());
+        metadataRepository.delete(metadata);
+    }
+
+    @Override
+    public String getTemporaryUrl(String fKey, Duration duration) {
+        FileMetadataEntity metadata = metadataRepository.findByFKey(fKey)
+            .orElseThrow(() -> new FileNotFoundException(fKey));
+        
+        return storageAdapter.generatePresignedUrl(
+            metadata.getStoragePath(),
+            duration
+        );
+    }
+}
+```
+
+### 9.6 架构决策记录
+
+| 决策点                 | 选择                          | 理由                                                  |
+| ---------------------- | ----------------------------- | ----------------------------------------------------- |
+| 服务注入方式           | Aware 模式                    | 避免 TaskContext 膨胀，保持插件接口简洁               |
+| 分片上传阈值           | 5MB                           | 平衡性能和复杂度                                      |
+| 存储路径管理           | 封装在 Service 内部           | 插件无需关心路径生成规则                              |
+| 临时 URL 有效期        | 由插件指定                    | 不同场景需求不同（下载 1 小时，预览 10 分钟）         |
+| 派生文件记录方式       | TaskContextKeys.DERIVED_FILE_KEYS | 统一管理，触发 FileRelations 自动更新（P0.3）         |
+| 错误处理               | 抛出 IOException              | 标准 Java I/O 异常，插件可选择重试或失败              |
+
+### 9.7 测试插件重构（P2.11）
+
+已有 3 个测试插件使用 PluginStorageService：
+
+1. **RenamePlugin**：演示基础用法
+2. **CreateDerivedFilePlugin**：演示派生文件上传和记录
+3. **UseStorageServicePlugin**：演示完整的 Aware 模式集成
+
+### 9.8 设计收益
+
+| 收益           | 说明                                                    |
+| -------------- | ------------------------------------------------------- |
+| **解耦**       | 插件无需依赖 StorageAdapter，可独立测试                 |
+| **简化 API**   | 4 个方法覆盖常见场景，无需了解分片、路径、适配器等细节   |
+| **职责清晰**   | TaskContext 专注数据容器，存储操作由专门服务提供         |
+| **可扩展性**   | 未来可添加缓存、限流、审计等功能，插件代码无需修改       |
+| **测试友好**   | Mock PluginStorageService 比 Mock StorageAdapter 容易   |
+| **关系追踪**   | 派生文件自动触发 FileRelations 更新（P0.3 集成）        |
