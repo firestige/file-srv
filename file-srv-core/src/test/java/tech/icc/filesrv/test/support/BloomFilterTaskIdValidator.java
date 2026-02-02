@@ -1,4 +1,4 @@
-package tech.icc.filesrv.core.infra.cache.impl;
+package tech.icc.filesrv.test.support;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,9 +13,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * 基于布隆过滤器的 TaskId 验证器
  * <p>
  * 提供 O(1) 时间复杂度的存在性检查，用于快速过滤不存在的 taskId。
- * @deprecated 由于本地布隆过滤器不能支持分布式，改用 redis，这个布隆过滤器暂时用于测试场景，后续需要移入 test 作为 stub 存在
  */
-@Deprecated
 @Service
 public class BloomFilterTaskIdValidator implements TaskIdValidator {
 

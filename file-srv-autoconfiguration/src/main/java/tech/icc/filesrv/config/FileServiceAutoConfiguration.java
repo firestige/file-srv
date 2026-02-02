@@ -6,8 +6,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import tech.icc.filesrv.core.infra.cache.TaskCacheService;
-import tech.icc.filesrv.common.spi.cache.TaskIdValidator;
-import tech.icc.filesrv.core.infra.cache.impl.BloomFilterTaskIdValidator;
 import tech.icc.filesrv.core.infra.cache.impl.CaffeineTaskCacheService;
 import tech.icc.filesrv.common.spi.event.TaskEventPublisher;
 import tech.icc.filesrv.core.infra.event.impl.LoggingTaskEventPublisher;
@@ -71,31 +69,6 @@ public class FileServiceAutoConfiguration {
         return new CaffeineTaskCacheService(
                 cacheProps.getMaxSize(),
                 Duration.ofSeconds(cacheProps.getExpireSeconds())
-        );
-    }
-
-    /**
-     * 任务ID校验器 - 本地布隆过滤器实现（备选）
-     * <p>
-     * 适用于单节点部署或 Redis 不可用场景。
-     * <p><b>限制：</b>
-     * <ul>
-     *   <li>本地内存存储，进程重启后丢失</li>
-     *   <li>多节点部署时，每个节点独立维护（效果打折）</li>
-     * </ul>
-     * 
-     * <p>配置项：
-     * - file-srv.bloom-filter.expected-insertions: 预期插入数量，默认 1000000
-     * - file-srv.bloom-filter.fpp: 误判率，默认 0.01
-     */
-    @Bean
-    @ConditionalOnMissingBean(TaskIdValidator.class)
-    @SuppressWarnings("deprecation")
-    public TaskIdValidator bloomFilterTaskIdValidator(FileServiceProperties properties) {
-        FileServiceProperties.BloomFilterProperties bloomProps = properties.getBloomFilter();
-        return new BloomFilterTaskIdValidator(
-                bloomProps.getExpectedInsertions(),
-                bloomProps.getFpp()
         );
     }
 
