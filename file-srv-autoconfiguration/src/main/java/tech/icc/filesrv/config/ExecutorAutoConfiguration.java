@@ -6,14 +6,15 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.kafka.core.KafkaTemplate;
 import tech.icc.filesrv.core.domain.tasks.TaskRepository;
-import tech.icc.filesrv.core.infra.event.TaskEventPublisher;
-import tech.icc.filesrv.core.infra.executor.*;
-import tech.icc.filesrv.core.infra.executor.impl.*;
-import tech.icc.filesrv.core.infra.executor.message.CallbackTaskMessage;
-import tech.icc.filesrv.core.infra.executor.message.DeadLetterMessage;
+import tech.icc.filesrv.common.config.ExecutorProperties;
+import tech.icc.filesrv.common.spi.event.TaskEventPublisher;
+import tech.icc.filesrv.common.spi.executor.CallbackTaskMessageHandler;
+import tech.icc.filesrv.common.spi.executor.DeadLetterPublisher;
+import tech.icc.filesrv.common.spi.executor.IdempotencyChecker;
+import tech.icc.filesrv.core.infra.executor.CallbackChainRunner;
+import tech.icc.filesrv.core.infra.executor.impl.DefaultCallbackChainRunner;
+import tech.icc.filesrv.core.infra.executor.impl.DefaultCallbackTaskMessageHandler;
 import tech.icc.filesrv.core.infra.file.LocalFileManager;
 import tech.icc.filesrv.core.infra.plugin.PluginRegistry;
 
@@ -24,7 +25,7 @@ import java.util.concurrent.Executors;
  * Callback 执行器自动配置
  * <p>
  * 当配置 {@code file-service.executor.enabled=true} 时启用。
- * 需要 Kafka 和 Redis 依赖。
+ * Kafka/Redis 相关实现由 spi-xx 模块提供。
  */
 @AutoConfiguration(after = FileServiceAutoConfiguration.class)
 @EnableConfigurationProperties(ExecutorProperties.class)
@@ -32,46 +33,12 @@ import java.util.concurrent.Executors;
 public class ExecutorAutoConfiguration {
 
     /**
-     * Callback 任务发布器
-     */
-    @Bean
-    @ConditionalOnMissingBean(CallbackTaskPublisher.class)
-    @ConditionalOnBean(KafkaTemplate.class)
-    public CallbackTaskPublisher kafkaCallbackTaskPublisher(
-            KafkaTemplate<String, CallbackTaskMessage> kafkaTemplate,
-            ExecutorProperties properties) {
-        return new KafkaCallbackTaskPublisher(kafkaTemplate, properties);
-    }
-
-    /**
-     * 死信发布器
-     */
-    @Bean
-    @ConditionalOnMissingBean(DeadLetterPublisher.class)
-    @ConditionalOnBean(KafkaTemplate.class)
-    public DeadLetterPublisher kafkaDeadLetterPublisher(
-            KafkaTemplate<String, DeadLetterMessage> kafkaTemplate,
-            ExecutorProperties properties) {
-        return new KafkaDeadLetterPublisher(kafkaTemplate, properties);
-    }
-
-    /**
-     * 幂等检查器
-     */
-    @Bean
-    @ConditionalOnMissingBean(IdempotencyChecker.class)
-    @ConditionalOnBean(StringRedisTemplate.class)
-    public IdempotencyChecker redisIdempotencyChecker(StringRedisTemplate redisTemplate) {
-        return new RedisIdempotencyChecker(redisTemplate);
-    }
-
-    /**
      * 超时执行器线程池
      */
     @Bean(name = "callbackTimeoutExecutor", destroyMethod = "shutdown")
     @ConditionalOnMissingBean(name = "callbackTimeoutExecutor")
     public ExecutorService callbackTimeoutExecutor(ExecutorProperties properties) {
-        int concurrency = properties.kafka().concurrency();
+        int concurrency = properties.messageQueue().concurrency();
         return Executors.newFixedThreadPool(concurrency * 2,
                 r -> {
                     Thread t = new Thread(r, "callback-executor");
@@ -105,18 +72,18 @@ public class ExecutorAutoConfiguration {
     }
 
     /**
-     * Kafka Callback 任务消费者
+     * Callback 任务消息处理器
      */
     @Bean
-    @ConditionalOnMissingBean(KafkaCallbackTaskConsumer.class)
-    @ConditionalOnBean({CallbackChainRunner.class, IdempotencyChecker.class, DeadLetterPublisher.class})
-    public KafkaCallbackTaskConsumer kafkaCallbackTaskConsumer(
+    @ConditionalOnMissingBean(CallbackTaskMessageHandler.class)
+    @ConditionalOnBean({IdempotencyChecker.class, DeadLetterPublisher.class})
+    public CallbackTaskMessageHandler callbackTaskMessageHandler(
             TaskRepository taskRepository,
             CallbackChainRunner chainRunner,
             IdempotencyChecker idempotencyChecker,
             DeadLetterPublisher dltPublisher,
             ExecutorProperties properties) {
-        return new KafkaCallbackTaskConsumer(
+        return new DefaultCallbackTaskMessageHandler(
                 taskRepository,
                 chainRunner,
                 idempotencyChecker,
@@ -124,4 +91,5 @@ public class ExecutorAutoConfiguration {
                 properties
         );
     }
+
 }

@@ -1,41 +1,5 @@
 package tech.icc.filesrv.adapter.hcs.config;
 
-import com.obs.services.ObsClient;
-import com.obs.services.ObsConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import tech.icc.filesrv.adapter.hcs.HcsObsAdapter;
-import tech.icc.filesrv.common.spi.storage.StorageAdapter;
-
 /**
- * OBS 自动配置
+ * 适配器模块不再承载自动配置，自动配置已迁移至 autoconfiguration 模块。
  */
-@Configuration
-@ConditionalOnProperty(prefix = "storage.obs", name = "enabled", havingValue = "true")
-@EnableConfigurationProperties(ObsProperties.class)
-public class ObsAutoConfiguration {
-
-    @Bean
-    public ObsClient obsClient(ObsProperties properties) {
-        ObsConfiguration config = new ObsConfiguration();
-        config.setEndPoint(properties.getEndpoint());
-        
-        // 超时配置
-        ObsProperties.Timeout timeout = properties.getTimeout();
-        config.setConnectionTimeout((int) timeout.getConnect().toMillis());
-        config.setSocketTimeout((int) timeout.getSocket().toMillis());
-        
-        return new ObsClient(
-                properties.getAccessKey(),
-                properties.getSecretKey(),
-                config
-        );
-    }
-
-    @Bean
-    public StorageAdapter hcsObsAdapter(ObsClient obsClient, ObsProperties properties) {
-        return new HcsObsAdapter(obsClient, properties.getBucketName(), properties.getPresignedUrlExpiration());
-    }
-}
