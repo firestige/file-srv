@@ -23,17 +23,37 @@
             <artifactId>file-srv-autoconfiguration</artifactId>
             <version>${revision}</version>
         </dependency>
-
         <dependency>
             <groupId>tech.icc</groupId>
             <artifactId>file-srv-common</artifactId>
             <version>${revision}</version>
         </dependency>
-
         <dependency>
             <groupId>tech.icc</groupId>
             <artifactId>file-srv-core</artifactId>
             <version>${revision}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>tech.icc</groupId>
+            <artifactId>file-srv-aspect</artifactId>
+            <version>${revision}</version>
+            <optional>true</optional>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>tech.icc</groupId>
+            <artifactId>file-srv-adapter-hcs</artifactId>
+            <version>${revision}</version>
+            <optional>true</optional>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>tech.icc</groupId>
+            <artifactId>file-srv-spi-redis</artifactId>
+            <version>${revision}</version>
+            <optional>true</optional>
+            <scope>runtime</scope>
         </dependency>
 
         <dependency>
