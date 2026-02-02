@@ -16,6 +16,7 @@
         <module>file-srv-core</module>
         <module>file-srv-plugins</module>
         <module>file-srv-test</module>
+        <module>file-srv-spi</module>
     </modules>
 
     <properties>
