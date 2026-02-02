@@ -21,7 +21,6 @@ import tech.icc.filesrv.test.support.stub.ObjectStorageServiceStub;
 import tech.icc.filesrv.core.domain.tasks.TaskRepository;
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
 import tech.icc.filesrv.common.context.TaskContext;
-import tech.icc.filesrv.common.context.TaskContextKeys;
 import tech.icc.filesrv.common.vo.task.TaskStatus;
 
 import java.security.MessageDigest;

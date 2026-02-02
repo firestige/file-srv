@@ -9,7 +9,7 @@
         <version>${revision}</version>
     </parent>
 
-    <artifactId>file-srv-test</artifactId>
+    <artifactId>file-srv-bootstrap</artifactId>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -25,8 +25,9 @@
         </dependency>
 
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <groupId>tech.icc</groupId>
+            <artifactId>file-srv-core</artifactId>
+            <version>${revision}</version>
         </dependency>
 
         <dependency>
@@ -37,7 +38,7 @@
 
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>postgresql</artifactId>
+            <artifactId>mysql</artifactId>
             <scope>test</scope>
         </dependency>
 

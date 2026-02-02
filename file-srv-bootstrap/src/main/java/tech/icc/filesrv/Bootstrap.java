@@ -7,21 +7,14 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
 
 /**
- * 测试专用 Spring Boot 配置
- * <p>
- * 配置说明：
- * - 扫描 core 模块的所有组件（Service, Repository 实现类等）
- * - 启用 JPA Repository
- * - 扫描 JPA Entity
- * - 启用异步支持（用于回调链异步执行）
+ * 用于集成测试的引导类，启动 Spring Boot 应用程序。
  */
-@SpringBootApplication(scanBasePackages = "tech.icc.filesrv.core")
+@SpringBootApplication
 @EnableJpaRepositories(basePackages = "tech.icc.filesrv.core.infra.persistence.repository")
 @EntityScan(basePackages = "tech.icc.filesrv.core.infra.persistence.entity")
 @EnableAsync
-public class TestApplication {
+public class Bootstrap {
     public static void main(String[] args) {
-        SpringApplication.run(TestApplication.class, args);
+        SpringApplication.run(Bootstrap.class, args);
     }
 }
-
