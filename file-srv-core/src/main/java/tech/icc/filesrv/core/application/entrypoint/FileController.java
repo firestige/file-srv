@@ -229,7 +229,6 @@ public class FileController {
                 response.identity().fKey(), response.identity().fileName(), response.identity().fileSize());
 
         return FileResponseBuilder.forUpload()
-                .fromFileInfo(response)
                 .location(resourceUri)
                 .build(Result.success(response));
     }

@@ -234,6 +234,7 @@
                 </plugin>
 
                 <!-- Maven Toolchains Plugin: 确保使用正确的 JDK 版本 -->
+                <!-- CI 环境可通过 -Dmaven.toolchains.skip=true 跳过 -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-toolchains-plugin</artifactId>
@@ -251,6 +252,8 @@
                                 <version>17</version>
                             </jdk>
                         </toolchains>
+                        <!-- 允许在没有 toolchains.xml 时跳过，不报错 -->
+                        <ignoreMissingToolchainConfiguration>true</ignoreMissingToolchainConfiguration>
                     </configuration>
                 </plugin>
 

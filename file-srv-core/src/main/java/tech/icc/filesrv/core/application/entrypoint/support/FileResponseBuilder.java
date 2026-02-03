@@ -17,10 +17,10 @@ import tech.icc.filesrv.common.vo.file.FileIdentity;
 import tech.icc.filesrv.common.vo.file.FileTags;
 import tech.icc.filesrv.common.vo.file.StorageRef;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -171,7 +171,7 @@ public class FileResponseBuilder {
         Optional.ofNullable(owner.createdBy())
                 .ifPresent(c -> headers.set(HEADER_CREATED_BY, c));
         Optional.ofNullable(owner.creatorName())
-                .ifPresent(n -> headers.set(HEADER_CREATOR_NAME, n));
+                .ifPresent(n -> headers.set(HEADER_CREATOR_NAME, encodeHeaderValue(n)));
     }
 
     // ==================== 审计信息 ====================
@@ -263,6 +263,29 @@ public class FileResponseBuilder {
     public FileResponseBuilder header(String name, String value) {
         headers.set(name, value);
         return this;
+    }
+
+    // ==================== 编码辅助方法 ====================
+
+    /**
+     * 对 HTTP Header 值进行 UTF-8 URL 编码
+     * <p>
+     * HTTP Header 只允许 ASCII 字符，对于包含中文等非 ASCII 字符的值（如 creatorName），
+     * 需要进行 URL 编码后再设置到 Header 中。
+     * 
+     * @param value 原始值（可能包含中文）
+     * @return URL 编码后的值（仅 ASCII 字符）
+     */
+    private String encodeHeaderValue(String value) {
+        if (value == null || value.isEmpty()) {
+            return value;
+        }
+        try {
+            return URLEncoder.encode(value, StandardCharsets.UTF_8.toString());
+        } catch (UnsupportedEncodingException e) {
+            // UTF-8 是标准编码，理论上不会抛出此异常
+            throw new IllegalStateException("UTF-8 encoding not supported", e);
+        }
     }
 
     // ==================== 构建响应 ====================

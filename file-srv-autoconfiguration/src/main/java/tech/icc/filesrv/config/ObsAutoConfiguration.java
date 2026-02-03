@@ -25,10 +25,10 @@ public class ObsAutoConfiguration {
         ObsConfiguration config = new ObsConfiguration();
         config.setEndPoint(properties.getEndpoint());
 
-        // 超时配置
-        ObsProperties.Timeout timeout = properties.getTimeout();
-        config.setConnectionTimeout((int) timeout.getConnect().toMillis());
-        config.setSocketTimeout((int) timeout.getSocket().toMillis());
+        // 注意：设置超时配置会导致 OBS SDK 408 错误，使用默认值
+        // ObsProperties.Timeout timeout = properties.getTimeout();
+        // config.setConnectionTimeout((int) timeout.getConnect().toMillis());
+        // config.setSocketTimeout((int) timeout.getSocket().toMillis());
 
         return new ObsClient(
                 properties.getAccessKey(),

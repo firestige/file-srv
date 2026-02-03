@@ -4,7 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.Resource;
-import org.springframework.stereotype.Service;
 import tech.icc.filesrv.core.infra.file.LocalFileManager;
 import tech.icc.filesrv.common.spi.storage.StorageAdapter;
 
@@ -19,7 +18,6 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 默认本地文件管理器实现
  */
-@Service
 public class DefaultLocalFileManager implements LocalFileManager {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultLocalFileManager.class);

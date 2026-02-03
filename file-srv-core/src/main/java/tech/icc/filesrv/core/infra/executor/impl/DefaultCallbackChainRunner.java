@@ -50,7 +50,6 @@ import java.util.concurrent.TimeoutException;
  *   <li>整个链在同一节点完成，避免文件重复下载</li>
  * </ul>
  */
-@Service
 public class DefaultCallbackChainRunner implements CallbackChainRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultCallbackChainRunner.class);
