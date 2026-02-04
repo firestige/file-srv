@@ -40,17 +40,45 @@ export OBS_SECRET_KEY=your-secret-key
 ### 1. 编译项目
 
 ```bash
+# 完整编译（包含单元测试）
 mvn clean install
+
+# 跳过测试的快速编译
+mvn clean install -DskipTests
+
+# 只编译不打包
+mvn clean compile
 ```
 
-### 2. 运行应用
+### 2. CI/CD 构建命令
 
 ```bash
-cd icc-file-srv-bootstrap
+# CI 环境：跳过 toolchains 检查
+mvn clean install -Dmaven.toolchains.skip=true
+
+# 或者使用 ci profile（只运行单元测试）
+mvn clean install -Pci -Dmaven.toolchains.skip=true
+
+# 快速构建（跳过所有测试）
+mvn clean install -Pfast -Dmaven.toolchains.skip=true
+
+# 运行集成测试
+mvn clean verify -Pintegration-tests -Dmaven.toolchains.skip=true
+```
+
+**Profile 说明**：
+- `ci`：只运行单元测试（默认）
+- `fast`：跳过所有测试
+- `integration-tests`：运行集成测试（需要 Docker）
+
+### 3. 运行应用
+
+```bash
+cd file-srv-bootstrap
 mvn spring-boot:run
 ```
 
-### 3. 测试接口
+### 4. 测试接口
 
 #### 上传文件
 

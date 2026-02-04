@@ -26,8 +26,8 @@ public class DefaultLocalFileManager implements LocalFileManager {
     private final StorageAdapter storageAdapter;
     private final Map<String, Path> cachedFiles = new ConcurrentHashMap<>();
 
-    // todo 这里的 Path 是参数，我们要在 config 中追加
-    public DefaultLocalFileManager(@Qualifier("tempBaseDir") Path tempBaseDir, StorageAdapter storageAdapter) {
+    // todo 生产config已有bean，但是测试时没有，需要手动构建
+    public DefaultLocalFileManager(Path tempBaseDir, StorageAdapter storageAdapter) {
         this.tempBaseDir = tempBaseDir;
         this.storageAdapter = storageAdapter;
         

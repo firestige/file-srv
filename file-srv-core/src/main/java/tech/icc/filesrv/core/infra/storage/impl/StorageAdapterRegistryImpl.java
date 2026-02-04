@@ -28,6 +28,7 @@ public class StorageAdapterRegistryImpl implements StorageAdapterRegistry {
         for (StorageAdapter adapter : adapterList) {
             register(adapter.getAdapterType(), adapter);
         }
+        // todo 这里用adapterType作为nodeId，但RoutingStorageAdapter却用primary作为key查找，需要统一
         log.info("Registered {} storage adapters: {}", adapters.size(), adapters.keySet());
     }
 

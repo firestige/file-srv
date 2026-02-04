@@ -134,8 +134,7 @@ CREATE TABLE upload_task (
     INDEX idx_fkey (f_key),
     INDEX idx_status (status),
     INDEX idx_expires_at (expires_at),
-    INDEX idx_created_at (created_at),
-    CONSTRAINT chk_upload_task_status CHECK (status IN ('PENDING', 'IN_PROGRESS', 'PROCESSING', 'COMPLETED', 'FAILED', 'ABORTED', 'EXPIRED'))
+    INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
 COMMENT='上传任务表，支持分片上传和回调链';
 
