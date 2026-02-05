@@ -17,6 +17,7 @@ import tech.icc.filesrv.core.application.service.dto.PartETagDto;
 import tech.icc.filesrv.core.application.service.dto.TaskInfoDto;
 import tech.icc.filesrv.common.domain.events.TaskCompletedEvent;
 import tech.icc.filesrv.common.domain.events.TaskFailedEvent;
+import tech.icc.filesrv.core.domain.services.StorageRoutingService;
 import tech.icc.filesrv.core.domain.tasks.*;
 import tech.icc.filesrv.common.spi.cache.TaskIdValidator;
 import tech.icc.filesrv.common.spi.event.TaskEventPublisher;
@@ -62,6 +63,7 @@ public class TaskService {
     private final LocalFileManager localFileManager;
     private final TaskIdValidator idValidator;
     private final FileService fileService;
+    private final StorageRoutingService storageRoutingService;
 
     public TaskService(TaskRepository taskRepository,
                        StorageAdapter storageAdapter,
@@ -70,7 +72,8 @@ public class TaskService {
                        CallbackTaskPublisher callbackPublisher,
                        LocalFileManager localFileManager,
                        TaskIdValidator idValidator,
-                       FileService fileService) {
+                       FileService fileService,
+                       tech.icc.filesrv.core.domain.services.StorageRoutingService storageRoutingService) {
         this.taskRepository = taskRepository;
         this.storageAdapter = storageAdapter;
         this.pluginRegistry = pluginRegistry;
@@ -79,6 +82,7 @@ public class TaskService {
         this.localFileManager = localFileManager;
         this.idValidator = idValidator;
         this.fileService = fileService;
+        this.storageRoutingService = storageRoutingService;
     }
 
     // ==================== 命令操作 ====================
@@ -117,7 +121,7 @@ public class TaskService {
         );
 
         // 生成存储路径并开始上传会话
-        String storagePath = buildStoragePath(fKey, request.contentType());
+        String storagePath = storageRoutingService.buildStoragePath(fKey, request.contentType());
         UploadSession session = storageAdapter.beginUpload(storagePath, request.contentType());
 
         // 保存 sessionId，但保持 PENDING 状态（真正开始上传时才转为 IN_PROGRESS）
@@ -160,7 +164,7 @@ public class TaskService {
         }
 
         // 恢复上传会话（支持降级：如果不支持断点续传，则重新初始化）
-        String storagePath = buildStoragePath(task.getFKey(), task.getContentType());
+        String storagePath = storageRoutingService.buildStoragePath(task.getFKey(), task.getContentType());
         UploadSession session;
         try {
             session = storageAdapter.resumeUpload(storagePath, task.getSessionId());
@@ -216,7 +220,7 @@ public class TaskService {
                 .toList();
 
         // 恢复会话并完成上传（支持降级：如果不支持断点续传，则重新初始化）
-        String storagePath = buildStoragePath(task.getFKey(), contentType);
+        String storagePath = storageRoutingService.buildStoragePath(task.getFKey(), contentType);
         UploadSession session;
         try {
             session = storageAdapter.resumeUpload(storagePath, task.getSessionId());
@@ -308,7 +312,7 @@ public class TaskService {
         // 如果有会话，中止存储层上传
         if (task.getSessionId() != null) {
             try {
-                String storagePath = buildStoragePath(task.getFKey(), task.getContentType());
+                String storagePath = storageRoutingService.buildStoragePath(task.getFKey(), task.getContentType());
                 UploadSession session;
                 try {
                     session = storageAdapter.resumeUpload(storagePath, task.getSessionId());
@@ -434,12 +438,6 @@ public class TaskService {
     private String generateFKey(FileRequest request) {
         // 简单实现：使用 UUID
         return java.util.UUID.randomUUID().toString();
-    }
-
-    private String buildStoragePath(String fKey, String contentType) {
-        // 格式: {hash前2位}/{hash前4位}/{fKey}
-        String prefix = fKey.substring(0, 2) + "/" + fKey.substring(0, 4) + "/";
-        return prefix + fKey;
     }
 
     private String getNodeId() {
