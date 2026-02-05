@@ -73,7 +73,7 @@ public class TaskService {
                        LocalFileManager localFileManager,
                        TaskIdValidator idValidator,
                        FileService fileService,
-                       tech.icc.filesrv.core.domain.services.StorageRoutingService storageRoutingService) {
+                       StorageRoutingService storageRoutingService) {
         this.taskRepository = taskRepository;
         this.storageAdapter = storageAdapter;
         this.pluginRegistry = pluginRegistry;
