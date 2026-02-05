@@ -23,9 +23,9 @@ public class KafkaCallbackTaskConsumer {
     }
 
     @KafkaListener(
-            topics = "${file-service.executor.kafka.topic:file-callback-tasks}",
-            groupId = "${file-service.executor.kafka.consumer-group:file-callback-executor}",
-            concurrency = "${file-service.executor.kafka.concurrency:4}"
+            topics = "${file-service.executor.message-queue.topic:file-callback-tasks}",
+            groupId = "${file-service.executor.message-queue.consumer-group:file-callback-executor}",
+            concurrency = "${file-service.executor.message-queue.concurrency:4}"
     )
     public void consume(CallbackTaskMessage msg, Acknowledgment ack) {
         CallbackTaskMessageHandler.HandleResult result = handler.handle(msg);

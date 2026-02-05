@@ -1,4 +1,6 @@
 tech.icc.filesrv.config.FileServiceAutoConfiguration
+tech.icc.filesrv.config.KafkaExecutorAutoConfiguration$PublisherConfiguration
 tech.icc.filesrv.config.ExecutorAutoConfiguration
+tech.icc.filesrv.config.KafkaExecutorAutoConfiguration$ConsumerConfiguration
 tech.icc.filesrv.config.RedisSpiAutoConfiguration
 tech.icc.filesrv.config.ObsAutoConfiguration

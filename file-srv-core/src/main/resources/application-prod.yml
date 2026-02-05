@@ -76,15 +76,24 @@ file-srv:
   
   # Callback 执行器配置
   executor:
+    enabled: true  # 启用 Kafka 执行器
+    message-queue:
+      topic: FILE_CALLBACK_TASKS              # Kafka topic（与生产环境一致）
+      dead-letter-topic: FILE_CALLBACK_TASKS_DLT  # 死信队列
+      consumer-group: file-callback-executor
+      concurrency: 4
     timeout:
       callback: 300s  # 单个 callback 超时时间
       chain: 1800s    # 整个 callback 链超时时间
+      task-deadline: 3600s  # 任务最大等待时间
     retry:
       max-retries-per-callback: 3
       backoff:
         initial-delay: 1000
         multiplier: 2.0
         max-delay: 10000
+    idempotency:
+      ttl: 86400s  # 幂等记录保留时间（24小时）
   
   # 孤儿文件清理配置
   orphan:

@@ -12,6 +12,7 @@ import tech.icc.filesrv.common.vo.task.TaskStatus;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -87,7 +88,8 @@ public class TaskEntity {
     /**
      * 任务上下文，存储为 JSON
      * <p>
-     * 注意：TaskContext 的内部 Map 需要能够序列化为 JSON
+     * 注意：从数据库加载时，复杂对象可能被反序列化为 LinkedHashMap
+     * 类型转换在 TaskContext 构造器中处理
      */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "context", columnDefinition = "json")
@@ -158,7 +160,10 @@ public class TaskEntity {
         task.setParts(parts != null ? new ArrayList<>(parts) : new ArrayList<>());
         task.setCallbacks(callbacks != null ? new ArrayList<>(callbacks) : new ArrayList<>());
         task.setCurrentCallbackIndex(currentCallbackIndex != null ? currentCallbackIndex : 0);
-        task.setContext(context != null ? new TaskContext(context) : new TaskContext());
+        
+        // 处理 context 的类型转换
+        task.setContext(context != null ? new TaskContext(convertContextTypes(context)) : new TaskContext());
+        
         task.setFailureReason(failureReason);
         task.setCreatedAt(createdAt);
         task.setExpiresAt(expiresAt);
@@ -166,5 +171,36 @@ public class TaskEntity {
         task.setVersion(version);
 
         return task;
+    }
+
+    /**
+     * 转换 context 中的复杂类型
+     * <p>
+     * Jackson 在反序列化 Map&lt;String, Object&gt; 时，会将复杂对象反序列化为 LinkedHashMap。
+     * 此方法将已知的复杂类型（如 DerivedFile）转换为正确的类型。
+     * </p>
+     */
+    private Map<String, Object> convertContextTypes(Map<String, Object> rawContext) {
+        if (rawContext == null || rawContext.isEmpty()) {
+            return rawContext;
+        }
+
+        Map<String, Object> converted = new HashMap<>(rawContext);
+        
+        // 转换 derivedFiles: List<DerivedFile>
+        Object derivedFiles = converted.get(TaskContext.KEY_DERIVED_FILES);
+        if (derivedFiles instanceof List<?> list && !list.isEmpty()) {
+            Object first = list.get(0);
+            // 如果是 LinkedHashMap，需要转换
+            if (first instanceof java.util.LinkedHashMap) {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                List<tech.icc.filesrv.common.vo.task.DerivedFile> typedList = list.stream()
+                        .map(item -> mapper.convertValue(item, tech.icc.filesrv.common.vo.task.DerivedFile.class))
+                        .toList();
+                converted.put(TaskContext.KEY_DERIVED_FILES, typedList);
+            }
+        }
+        
+        return converted;
     }
 }

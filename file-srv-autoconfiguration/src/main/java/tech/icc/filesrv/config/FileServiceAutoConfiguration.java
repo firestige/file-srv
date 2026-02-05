@@ -2,6 +2,7 @@ package tech.icc.filesrv.config;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -75,11 +76,12 @@ public class FileServiceAutoConfiguration {
     /**
      * 默认 Callback 任务发布器（NoOp 实现）
      * <p>
-     * 当 Kafka 不可用时使用此实现，仅记录日志。
-     * 启用 Kafka 执行器后会被 ExecutorAutoConfiguration 中的实现覆盖。
+     * 当 Kafka 执行器未启用时使用此实现，仅记录日志。
+     * 条件：file-service.executor.enabled != true
      */
     @Bean
     @ConditionalOnMissingBean(CallbackTaskPublisher.class)
+    @ConditionalOnProperty(prefix = "file-service.executor", name = "enabled", havingValue = "false", matchIfMissing = true)
     public CallbackTaskPublisher noOpCallbackTaskPublisher() {
         return new NoOpCallbackTaskPublisher();
     }
