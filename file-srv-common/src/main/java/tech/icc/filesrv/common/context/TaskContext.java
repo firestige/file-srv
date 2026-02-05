@@ -1,8 +1,10 @@
 package tech.icc.filesrv.common.context;
 
+import tech.icc.filesrv.common.vo.file.FileMetadataUpdate;
 import tech.icc.filesrv.common.vo.task.DerivedFile;
 
 import java.util.*;
+import java.util.function.Consumer;
 
 /**
  * 任务上下文
@@ -197,49 +199,112 @@ public class TaskContext {
     // ==================== 元数据修改操作 ====================
 
     /** 元数据变更记录 Key（内部使用） */
+    public static final String KEY_METADATA_UPDATE = "_metadataUpdate";
+
+    // --- 元数据字段常量（已废弃，保留给旧插件兼容） ---
+    /** @deprecated 使用 {@link #updateMetadata(Consumer)} 替代 */
+    @Deprecated
+    public static final String METADATA_FILENAME = "filename";
+    /** @deprecated 使用 {@link #updateMetadata(Consumer)} 替代 */
+    @Deprecated
+    public static final String METADATA_CONTENT_TYPE = "contentType";
+    /** @deprecated 使用 {@link #updateMetadata(Consumer)} 替代 */
+    @Deprecated
     public static final String KEY_METADATA_CHANGES = "_metadataChanges";
 
-    // --- 元数据字段常量 ---
-    /** 文件名字段 */
-    public static final String METADATA_FILENAME = "filename";
-    /** MIME 类型字段 */
-    public static final String METADATA_CONTENT_TYPE = "contentType";
-
     /**
-     * 设置元数据字段值（通用方法）
+     * 更新文件元数据（类型安全 Builder API）
      * <p>
      * 供元数据修改类插件调用，变更会在 callback 链全部成功后应用到 FileReference。
      * <p>
-     * 支持的字段：
-     * <ul>
-     *   <li>{@link #METADATA_FILENAME} - 文件名</li>
-     *   <li>{@link #METADATA_CONTENT_TYPE} - MIME 类型</li>
-     * </ul>
+     * 例如 RenamePlugin：
+     * <pre>
+     * context.updateMetadata(builder -> builder
+     *     .filename("new-name.txt")
+     *     .tags("processed validated")
+     *     .mergeMetadata("processedBy", "RenamePlugin")
+     * );
+     * </pre>
      *
-     * @param field 元数据字段名，建议使用 {@code METADATA_*} 常量
-     * @param value 新值
+     * @param updater Builder 消费者
      */
-    public void setMetadata(String field, String value) {
-        getMetadataChanges().put(field, value);
+    public void updateMetadata(Consumer<FileMetadataUpdate.FileMetadataUpdateBuilder> updater) {
+        FileMetadataUpdate.FileMetadataUpdateBuilder builder = getMetadataUpdateBuilder();
+        updater.accept(builder);
+        // 每次调用都重新构建，确保最新状态
+        data.put(KEY_METADATA_UPDATE, builder.build());
     }
 
     /**
-     * 获取元数据变更记录
-     *
-     * @return 元数据变更 Map，key 为字段名，value 为新值
+     * 获取 Builder（内部使用）
      */
-    @SuppressWarnings("unchecked")
-    public Map<String, String> getMetadataChanges() {
-        return (Map<String, String>) data.computeIfAbsent(
-                KEY_METADATA_CHANGES, k -> new HashMap<String, String>());
+    private FileMetadataUpdate.FileMetadataUpdateBuilder getMetadataUpdateBuilder() {
+        FileMetadataUpdate current = (FileMetadataUpdate) data.get(KEY_METADATA_UPDATE);
+        if (current == null) {
+            return FileMetadataUpdate.builder();
+        }
+        // 使用 toBuilder() 从现有状态创建 Builder
+        return current.toBuilder();
     }
 
     /**
      * 是否有元数据变更
      */
+    public boolean hasMetadataUpdates() {
+        Object update = data.get(KEY_METADATA_UPDATE);
+        return update instanceof FileMetadataUpdate u && u.hasUpdates();
+    }
+
+    /**
+     * 获取元数据变更
+     */
+    public Optional<FileMetadataUpdate> getMetadataUpdate() {
+        return Optional.ofNullable((FileMetadataUpdate) data.get(KEY_METADATA_UPDATE));
+    }
+
+    // --- 旧 API（已废弃，保留给旧插件兼容） ---
+
+    /**
+     * @deprecated 使用 {@link #updateMetadata(Consumer)} 替代
+     */
+    @Deprecated
+    public void setMetadata(String field, String value) {
+        updateMetadata(builder -> {
+            if (METADATA_FILENAME.equals(field)) {
+                builder.filename(value);
+            } else if (METADATA_CONTENT_TYPE.equals(field)) {
+                builder.contentType(value);
+            }
+        });
+    }
+
+    /**
+     * @deprecated 使用 {@link #getMetadataUpdate()} 替代
+     */
+    @Deprecated
+    @SuppressWarnings("unchecked")
+    public Map<String, String> getMetadataChanges() {
+        // 为兼容旧插件，转换为旧格式
+        FileMetadataUpdate update = (FileMetadataUpdate) data.get(KEY_METADATA_UPDATE);
+        if (update == null) {
+            return new HashMap<>();
+        }
+        Map<String, String> legacy = new HashMap<>();
+        if (update.filename() != null) {
+            legacy.put(METADATA_FILENAME, update.filename());
+        }
+        if (update.contentType() != null) {
+            legacy.put(METADATA_CONTENT_TYPE, update.contentType());
+        }
+        return legacy;
+    }
+
+    /**
+     * @deprecated 使用 {@link #hasMetadataUpdates()} 替代
+     */
+    @Deprecated
     public boolean hasMetadataChanges() {
-        Object changes = data.get(KEY_METADATA_CHANGES);
-        return changes instanceof Map<?, ?> map && !map.isEmpty();
+        return hasMetadataUpdates();
     }
 
     // ==================== 衍生文件操作 ====================

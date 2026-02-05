@@ -7,8 +7,10 @@ import org.springframework.transaction.annotation.Transactional;
 import tech.icc.filesrv.common.context.TaskContext;
 import tech.icc.filesrv.common.spi.plugin.PluginResult;
 import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
+import tech.icc.filesrv.common.vo.file.FileMetadataUpdate;
 import tech.icc.filesrv.common.vo.task.CallbackConfig;
 import tech.icc.filesrv.common.vo.task.DerivedFile;
+import tech.icc.filesrv.core.application.service.FileService;
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
 import tech.icc.filesrv.core.domain.tasks.TaskRepository;
 import tech.icc.filesrv.core.infra.executor.CallbackChainRunner;
@@ -60,13 +62,16 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
     private final ExecutorService timeoutExecutor;
     private final ExecutorProperties properties;
     private final PluginStorageService pluginStorageService;
+    private final FileService fileService;
+    
     public DefaultCallbackChainRunner(TaskRepository taskRepository,
                                        PluginRegistry pluginRegistry,
                                        LocalFileManager localFileManager,
                                        TaskEventPublisher eventPublisher,
                                        ExecutorService timeoutExecutor,
                                        ExecutorProperties properties,
-                                       PluginStorageService pluginStorageService) {
+                                       PluginStorageService pluginStorageService,
+                                       FileService fileService) {
         this.taskRepository = taskRepository;
         this.pluginRegistry = pluginRegistry;
         this.localFileManager = localFileManager;
@@ -74,6 +79,7 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
         this.timeoutExecutor = timeoutExecutor;
         this.properties = properties;
         this.pluginStorageService = pluginStorageService;
+        this.fileService = fileService;
     }
 
     @Override
@@ -120,7 +126,17 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
                 context = task.getContext();
             }
 
-            // 5. 全部完成
+            // 5. 应用元数据更新（如果有）
+            if (context.hasMetadataUpdates()) {
+                FileMetadataUpdate update = context.getMetadataUpdate().orElse(null);
+                if (update != null) {
+                    log.info("Applying metadata updates from callbacks: taskId={}, fKey={}", 
+                            task.getTaskId(), task.getFKey());
+                    fileService.applyMetadataUpdate(task.getFKey(), update);
+                }
+            }
+
+            // 6. 标记完成
             task.markCompleted();
             task = taskRepository.save(task);
             publishCompletedEvent(task);

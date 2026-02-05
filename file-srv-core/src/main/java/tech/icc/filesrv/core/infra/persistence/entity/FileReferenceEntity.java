@@ -1,5 +1,7 @@
 package tech.icc.filesrv.core.infra.persistence.entity;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,13 +13,18 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import tech.icc.filesrv.common.vo.audit.AuditInfo;
 import tech.icc.filesrv.common.vo.audit.OwnerInfo;
 import tech.icc.filesrv.common.vo.file.AccessControl;
+import tech.icc.filesrv.common.vo.file.CustomMetadata;
+import tech.icc.filesrv.common.vo.file.FileTags;
 import tech.icc.filesrv.core.domain.files.FileReference;
 import tech.icc.filesrv.core.domain.files.FileStatus;
 
 import java.time.OffsetDateTime;
+import java.util.Map;
 
 /**
  * 文件引用 JPA 实体
@@ -63,6 +70,13 @@ public class FileReferenceEntity {
     @Column(name = "is_public")
     private Boolean isPublic;
 
+    @Column(name = "tags", columnDefinition = "TEXT")
+    private String tags;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "custom_metadata", columnDefinition = "JSON")
+    private Map<String, String> customMetadata;
+
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
@@ -84,6 +98,8 @@ public class FileReferenceEntity {
                 .ownerName(ref.owner() != null ? ref.owner().creatorName() : null)
                 .status(ref.contentHash() != null ? FileStatus.ACTIVE : FileStatus.PENDING)
                 .isPublic(ref.access() != null && ref.access().isPublic())
+                .tags(ref.tags() != null ? ref.tags().tags() : null)
+                .customMetadata(ref.metadata() != null ? ref.metadata().customMetadata() : null)
                 .createdAt(ref.audit() != null ? ref.audit().createdAt() : OffsetDateTime.now())
                 .updatedAt(ref.audit() != null ? ref.audit().updatedAt() : OffsetDateTime.now())
                 .build();
@@ -102,6 +118,8 @@ public class FileReferenceEntity {
                 eTag,
                 new OwnerInfo(ownerId, ownerName),
                 new AccessControl(isPublic != null && isPublic),
+                tags != null ? new FileTags(tags) : FileTags.empty(),
+                customMetadata != null ? new CustomMetadata(customMetadata) : CustomMetadata.empty(),
                 new AuditInfo(createdAt, updatedAt)
         );
     }

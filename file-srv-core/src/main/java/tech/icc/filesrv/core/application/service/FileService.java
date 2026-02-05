@@ -21,6 +21,7 @@ import tech.icc.filesrv.common.vo.audit.OwnerInfo;
 import tech.icc.filesrv.common.vo.file.AccessControl;
 import tech.icc.filesrv.common.vo.file.CustomMetadata;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
+import tech.icc.filesrv.common.vo.file.FileMetadataUpdate;
 import tech.icc.filesrv.common.vo.file.FileTags;
 import tech.icc.filesrv.common.vo.file.StorageRef;
 import tech.icc.filesrv.core.application.service.dto.FileInfoDto;
@@ -110,8 +111,8 @@ public class FileService {
         String contentType = fileInfo.identity().fileType();
         long size = file.getSize();
 
-        // 2. 创建文件引用（PENDING 状态）
-        FileReference reference = FileReference.create(filename, contentType, size, owner);
+        // 2. 创建文件引用（PENDING 状态），包含 tags 和 customMetadata
+        FileReference reference = FileReference.create(filename, contentType, size, owner, fileTags, metadata);
         reference = fileReferenceRepository.save(reference);
         log.debug("Created file reference: fKey={}", reference.fKey());
 
@@ -221,15 +222,18 @@ public class FileService {
      * @param size        文件大小
      * @param contentType MIME 类型
      * @param owner       所有者信息
+     * @param tags        文件标签
+     * @param metadata    自定义元数据
      * @return 创建的文件引用
      */
     @Transactional
     public FileReference createPendingFile(String fKey, String filename, Long size, 
-                                           String contentType, OwnerInfo owner) {
+                                           String contentType, OwnerInfo owner, 
+                                           FileTags tags, CustomMetadata metadata) {
         log.debug("Creating pending file: fKey={}, filename={}", fKey, filename);
         
         // 创建 PENDING 状态的 FileReference（未绑定 contentHash）
-        FileReference reference = FileReference.create(filename, contentType, size, owner);
+        FileReference reference = FileReference.create(filename, contentType, size, owner, tags, metadata);
         
         // 使用指定的 fKey（而不是自动生成）
         reference = new FileReference(
@@ -241,6 +245,8 @@ public class FileService {
                 null,  // eTag 待绑定
                 reference.owner(),
                 reference.access(),
+                reference.tags(),
+                reference.metadata(),
                 reference.audit()
         );
         
@@ -495,5 +501,47 @@ public class FileService {
                 criteria.createdAfter().atStartOfDay(),
                 criteria.createdBefore().atStartOfDay()
         );
+    }
+
+    /**
+     * 应用元数据更新到文件引用
+     * <p>
+     * 供 Callback 执行器调用，将 Plugin 的元数据变更持久化到数据库。
+     *
+     * @param fKey   文件唯一标识
+     * @param update 元数据更新
+     * @return 更新后的文件引用
+     */
+    @Transactional
+    public FileReference applyMetadataUpdate(String fKey, FileMetadataUpdate update) {
+        if (update == null || !update.hasUpdates()) {
+            log.debug("No metadata updates for fKey={}", fKey);
+            return fileReferenceRepository.findByFKey(fKey)
+                    .orElseThrow(() -> new FileNotFoundException(fKey));
+        }
+
+        log.info("Applying metadata updates: fKey={}, update={}", fKey, update);
+
+        FileReference ref = fileReferenceRepository.findByFKey(fKey)
+                .orElseThrow(() -> new FileNotFoundException(fKey));
+
+        // 应用更新
+        if (update.getFilename() != null) {
+            ref = ref.rename(update.getFilename());
+        }
+        if (update.getContentType() != null) {
+            ref = ref.withContentType(update.getContentType());
+        }
+        if (update.getTags() != null) {
+            ref = ref.withTags(update.getTags());
+        }
+        if (update.getCustomMetadata() != null) {
+            ref = ref.withMetadata(update.getCustomMetadata());
+        }
+
+        ref = fileReferenceRepository.save(ref);
+        log.info("Metadata updated: fKey={}", fKey);
+
+        return ref;
     }
 }

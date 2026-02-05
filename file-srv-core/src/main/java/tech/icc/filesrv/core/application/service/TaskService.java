@@ -108,7 +108,9 @@ public class TaskService {
                 request.filename(), 
                 request.size(), 
                 request.contentType(), 
-                request.owner()
+                request.owner(),
+                request.fileTags(),
+                request.metadata()
         );
 
         // 生成存储路径并开始上传会话
