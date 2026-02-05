@@ -71,7 +71,6 @@ public final class TaskInfoAssembler {
                 .size(request.getSize())
                 .contentHash(request.getContentHash())
                 .eTag(request.getETag())
-                .location(request.getLocation())
                 .owner(owner)
                 .access(accessControl)
                 .fileTags(fileTags)

@@ -35,9 +35,6 @@ public class CreateTaskRequest {
     /** 期望的 ETag/校验和（可选） */
     private String eTag;
 
-    /** 目标存储位置（可选） */
-    private String location;
-
     /** 创建者 ID（必填） */
     @NotBlank(message = "创建者不能为空")
     private String createdBy;
@@ -98,14 +95,6 @@ public class CreateTaskRequest {
 
     public void setETag(String eTag) {
         this.eTag = eTag;
-    }
-
-    public String getLocation() {
-        return location;
-    }
-
-    public void setLocation(String location) {
-        this.location = location;
     }
 
     public String getCreatedBy() {

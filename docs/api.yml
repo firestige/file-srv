@@ -831,9 +831,6 @@ components:
         eTag:
           type: string
           description: 校验和
-        location:
-          type: string
-          description: 存储位置
         public:
           type: boolean
           description: 是否公开
@@ -953,9 +950,6 @@ components:
         storageType:
           type: string
           description: 存储类型
-        location:
-          type: string
-          description: 存储位置
         path:
           type: string
           description: 存储路径

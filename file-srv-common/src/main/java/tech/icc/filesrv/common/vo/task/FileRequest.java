@@ -26,7 +26,7 @@ public record FileRequest(
         Long size,
         String contentHash,
         String eTag,
-        String location,
+
         @JsonUnwrapped OwnerInfo owner,
         @JsonUnwrapped AccessControl access,
         @JsonUnwrapped FileTags fileTags,
