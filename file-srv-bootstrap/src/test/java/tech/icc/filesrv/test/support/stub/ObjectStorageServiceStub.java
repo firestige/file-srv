@@ -11,6 +11,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -137,7 +138,7 @@ public class ObjectStorageServiceStub implements StorageAdapter {
      * <b>注意：</b>返回纯 ETag 值，不包含引号（与 HCS Adapter 的 normalizeETag 行为一致）。
      */
     private String calculateETag(byte[] data) {
-        int hash = java.util.Arrays.hashCode(data);
+        int hash = Arrays.hashCode(data);
         return String.format("%08x", hash);
     }
     

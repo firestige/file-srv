@@ -1,11 +1,24 @@
 package tech.icc.filesrv.core.infra.persistence.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import tech.icc.filesrv.common.context.TaskContext;
 import tech.icc.filesrv.common.vo.task.CallbackConfig;
+import tech.icc.filesrv.common.vo.task.DerivedFile;
 import tech.icc.filesrv.core.domain.tasks.PartInfo;
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
 import tech.icc.filesrv.common.vo.task.TaskStatus;
@@ -193,9 +206,9 @@ public class TaskEntity {
             Object first = list.get(0);
             // 如果是 LinkedHashMap，需要转换
             if (first instanceof java.util.LinkedHashMap) {
-                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                List<tech.icc.filesrv.common.vo.task.DerivedFile> typedList = list.stream()
-                        .map(item -> mapper.convertValue(item, tech.icc.filesrv.common.vo.task.DerivedFile.class))
+                ObjectMapper mapper = new ObjectMapper();
+                List<DerivedFile> typedList = list.stream()
+                        .map(item -> mapper.convertValue(item, DerivedFile.class))
                         .toList();
                 converted.put(TaskContext.KEY_DERIVED_FILES, typedList);
             }

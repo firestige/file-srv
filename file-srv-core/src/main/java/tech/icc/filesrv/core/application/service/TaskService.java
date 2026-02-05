@@ -1,6 +1,7 @@
 package tech.icc.filesrv.core.application.service;
 
 import jakarta.persistence.OptimisticLockException;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -11,17 +12,24 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tech.icc.filesrv.common.exception.validation.InvalidTaskIdException;
 import tech.icc.filesrv.common.exception.validation.TaskNotFoundException;
-import tech.icc.filesrv.common.vo.task.*;
+import tech.icc.filesrv.common.vo.task.CallbackConfig;
+import tech.icc.filesrv.common.vo.task.FailureDetail;
+import tech.icc.filesrv.common.vo.task.FileRequest;
+import tech.icc.filesrv.common.vo.task.TaskStatus;
+import tech.icc.filesrv.common.vo.task.TaskSummary;
+import tech.icc.filesrv.common.vo.task.UploadProgress;
 import tech.icc.filesrv.core.application.service.dto.FileInfoDto;
 import tech.icc.filesrv.core.application.service.dto.PartETagDto;
 import tech.icc.filesrv.core.application.service.dto.TaskInfoDto;
 import tech.icc.filesrv.common.domain.events.TaskCompletedEvent;
 import tech.icc.filesrv.common.domain.events.TaskFailedEvent;
 import tech.icc.filesrv.core.domain.services.StorageRoutingService;
-import tech.icc.filesrv.core.domain.tasks.*;
+import tech.icc.filesrv.core.domain.tasks.PartInfo;
 import tech.icc.filesrv.common.spi.cache.TaskIdValidator;
 import tech.icc.filesrv.common.spi.event.TaskEventPublisher;
 import tech.icc.filesrv.common.spi.executor.CallbackTaskPublisher;
+import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
+import tech.icc.filesrv.core.domain.tasks.TaskRepository;
 import tech.icc.filesrv.core.infra.file.LocalFileManager;
 import tech.icc.filesrv.common.exception.validation.PluginNotFoundException;
 import tech.icc.filesrv.core.infra.plugin.PluginRegistry;
@@ -32,6 +40,8 @@ import tech.icc.filesrv.common.spi.storage.UploadSession;
 import java.io.InputStream;
 import java.time.Duration;
 import java.util.List;
+
+import static java.util.UUID.randomUUID;
 
 /**
  * 任务服务
@@ -49,6 +59,7 @@ import java.util.List;
  * </ul>
  */
 @Service
+@RequiredArgsConstructor
 public class TaskService {
 
     private static final Logger log = LoggerFactory.getLogger(TaskService.class);
@@ -64,26 +75,6 @@ public class TaskService {
     private final TaskIdValidator idValidator;
     private final FileService fileService;
     private final StorageRoutingService storageRoutingService;
-
-    public TaskService(TaskRepository taskRepository,
-                       StorageAdapter storageAdapter,
-                       PluginRegistry pluginRegistry,
-                       TaskEventPublisher eventPublisher,
-                       CallbackTaskPublisher callbackPublisher,
-                       LocalFileManager localFileManager,
-                       TaskIdValidator idValidator,
-                       FileService fileService,
-                       StorageRoutingService storageRoutingService) {
-        this.taskRepository = taskRepository;
-        this.storageAdapter = storageAdapter;
-        this.pluginRegistry = pluginRegistry;
-        this.eventPublisher = eventPublisher;
-        this.callbackPublisher = callbackPublisher;
-        this.localFileManager = localFileManager;
-        this.idValidator = idValidator;
-        this.fileService = fileService;
-        this.storageRoutingService = storageRoutingService;
-    }
 
     // ==================== 命令操作 ====================
 
@@ -437,7 +428,7 @@ public class TaskService {
 
     private String generateFKey(FileRequest request) {
         // 简单实现：使用 UUID
-        return java.util.UUID.randomUUID().toString();
+        return randomUUID().toString();
     }
 
     private String getNodeId() {

@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * 内存 Redis Stub
@@ -200,7 +201,7 @@ public class InMemoryRedisStub {
         return storage.keySet().stream()
                 .filter(key -> key.matches(regex))
                 .filter(this::hasKey) // 过滤掉已过期的
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
     }
 
     // ==================== 测试辅助方法 ====================

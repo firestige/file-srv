@@ -68,7 +68,7 @@ public class StorageNodeEntity {
                 .bucket(node.bucket())
                 .tier(node.tier())
                 .status(node.status())
-                .createdAt(java.time.Instant.now())
+                .createdAt(Instant.now())
                 .build();
     }
 

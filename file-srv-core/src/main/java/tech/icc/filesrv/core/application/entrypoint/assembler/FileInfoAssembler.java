@@ -1,7 +1,10 @@
 package tech.icc.filesrv.core.application.entrypoint.assembler;
 
+import org.springframework.web.multipart.MultipartFile;
+import tech.icc.filesrv.common.vo.audit.OwnerInfo;
 import tech.icc.filesrv.common.vo.file.AccessControl;
 import tech.icc.filesrv.common.vo.file.CustomMetadata;
+import tech.icc.filesrv.common.vo.file.FileIdentity;
 import tech.icc.filesrv.common.vo.file.FileTags;
 import tech.icc.filesrv.core.application.entrypoint.model.FileMeta;
 import tech.icc.filesrv.core.application.entrypoint.model.FileInfoResponse;
@@ -34,7 +37,7 @@ public final class FileInfoAssembler {
          * @param file    上传的文件（用于获取实际大小）
          * @return 应用层 DTO（包含用户指定的 fileName 和 fileType）
          */
-        public static FileInfoDto toDto(FileUploadRequest request, org.springframework.web.multipart.MultipartFile file) {
+        public static FileInfoDto toDto(FileUploadRequest request, MultipartFile file) {
         if (request == null) {
             return FileInfoDto.builder()
                 .identity(null)
@@ -46,28 +49,28 @@ public final class FileInfoAssembler {
         }
 
         // 构建 FileIdentity（使用请求参数，不使用 MultipartFile 的原始值）
-        tech.icc.filesrv.common.vo.file.FileIdentity identity = tech.icc.filesrv.common.vo.file.FileIdentity.builder()
+        FileIdentity identity = FileIdentity.builder()
             .fileName(request.getFileName())
             .fileType(request.getFileType())
             .fileSize(file != null ? file.getSize() : null)
             .build();
 
-        tech.icc.filesrv.common.vo.audit.OwnerInfo owner = tech.icc.filesrv.common.vo.audit.OwnerInfo.builder()
+        OwnerInfo owner = OwnerInfo.builder()
             .createdBy(request.getCreatedBy())
             .creatorName(request.getCreatorName())
             .build();
 
-        tech.icc.filesrv.common.vo.file.AccessControl access = new tech.icc.filesrv.common.vo.file.AccessControl(
+        AccessControl access = new AccessControl(
             request.getPublic() != null && request.getPublic()
         );
 
-        tech.icc.filesrv.common.vo.file.FileTags tags = request.getTags() != null
-            ? tech.icc.filesrv.common.vo.file.FileTags.of(request.getTags())
-            : tech.icc.filesrv.common.vo.file.FileTags.empty();
+        FileTags tags = request.getTags() != null
+            ? FileTags.of(request.getTags())
+            : FileTags.empty();
 
-        tech.icc.filesrv.common.vo.file.CustomMetadata metadata = request.getCustomMetadata() != null
-            ? tech.icc.filesrv.common.vo.file.CustomMetadata.of(request.getCustomMetadata())
-            : tech.icc.filesrv.common.vo.file.CustomMetadata.empty();
+        CustomMetadata metadata = request.getCustomMetadata() != null
+            ? CustomMetadata.of(request.getCustomMetadata())
+            : CustomMetadata.empty();
 
         return FileInfoDto.builder()
             .identity(identity)

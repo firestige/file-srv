@@ -36,6 +36,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
 
 /**
  * 插件和 Callback 集成测试
@@ -561,7 +562,7 @@ class PluginCallbackScenarioTest {
     // ==================== E2E 完整流程测试 ====================
 
     @Test
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
+    @Transactional(propagation = NOT_SUPPORTED)
     @DisplayName("E2E: 应该完整执行 callback 链并验证插件结果")
     void shouldExecuteCompleteCallbackChainE2E() throws Exception {
         // Given: 准备测试数据
