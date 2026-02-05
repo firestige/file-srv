@@ -1,7 +1,7 @@
 package tech.icc.filesrv.core.infra.plugin.impl;
 
 import org.springframework.stereotype.Component;
-import tech.icc.filesrv.common.exception.validation.PluginNotFoundException;
+import tech.icc.filesrv.common.exception.NotFoundException;
 import tech.icc.filesrv.core.infra.plugin.PluginRegistry;
 import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
 
@@ -31,7 +31,7 @@ public class DefaultPluginRegistry implements PluginRegistry {
     public SharedPlugin getPlugin(String name) {
         SharedPlugin plugin = plugins.get(name);
         if (plugin == null) {
-            throw new PluginNotFoundException(name);
+            throw new NotFoundException.PluginNotFoundException(name);
         }
         return plugin;
     }

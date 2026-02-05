@@ -6,7 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import tech.icc.filesrv.common.exception.validation.FileNotFoundException;
+import tech.icc.filesrv.common.exception.NotFoundException;
 import tech.icc.filesrv.common.exception.validation.FileKeyTooLongException;
 import tech.icc.filesrv.config.FileControllerConfig;
 import tech.icc.filesrv.core.application.service.FileService;
@@ -59,7 +59,7 @@ class FileControllerTest {
         String invalidKey = "a";
         when(service.getFileInfo(anyString())).thenReturn(Optional.empty());
         assertThatThrownBy(() -> controller.getFile(invalidKey))
-                .isInstanceOf(FileNotFoundException.class);
+                .isInstanceOf(NotFoundException.FileNotFoundException.class);
     }
 
     @Test

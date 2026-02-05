@@ -14,8 +14,8 @@ package tech.icc.filesrv.common.spi.plugin;
  *     private PluginStorageService storageService;
  *     
  *     {@literal @}Override
- *     public void setPluginStorageService(Object service) {
- *         this.storageService = (PluginStorageService) service;
+ *     public void setPluginStorageService(PluginStorageService service) {
+ *         this.storageService = service;
  *     }
  *     
  *     {@literal @}Override
@@ -46,8 +46,7 @@ public interface PluginStorageServiceAware {
      * 插件应将服务实例保存到字段，供 {@link SharedPlugin#apply} 方法使用。
      * </p>
      *
-     * @param service 存储服务实例（实际类型为 PluginStorageService，
-     *                使用 Object 避免 file-srv-common 模块依赖 file-srv-core）
+     * @param service 存储服务实例
      */
-    void setPluginStorageService(Object service);
+    void setPluginStorageService(PluginStorageService service);
 }

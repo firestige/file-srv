@@ -1,8 +1,5 @@
 package tech.icc.filesrv.common.vo.file;
 
-import lombok.Builder;
-import lombok.Value;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -11,25 +8,37 @@ import java.util.Map;
  * <p>
  * 使用 Builder 模式提供类型安全的元数据更新 API
  */
-@Value
-@Builder(toBuilder = true)
-public class FileMetadataUpdate {
-    String filename;
-    String contentType;
-    FileTags tags;
-    CustomMetadata customMetadata;
-    
+public record FileMetadataUpdate(String filename, String contentType, FileTags tags, CustomMetadata customMetadata) {
     /**
      * 检查是否有任何更新
      */
     public boolean hasUpdates() {
         return filename != null || contentType != null || tags != null || customMetadata != null;
     }
-    
+
+    public static FileMetadataUpdateBuilder builder() {
+        return new FileMetadataUpdateBuilder();
+    }
+
     /**
      * Builder 扩展：设置标签（空格分隔字符串）
      */
     public static class FileMetadataUpdateBuilder {
+        private String filename;
+        private String contentType;
+        private FileTags tags;
+        private CustomMetadata customMetadata;
+
+        public FileMetadataUpdateBuilder filename(String filename) {
+            this.filename = filename;
+            return this;
+        }
+
+        public FileMetadataUpdateBuilder contentType(String contentType) {
+            this.contentType = contentType;
+            return this;
+        }
+
         /**
          * 设置标签（空格分隔）
          */
@@ -37,7 +46,7 @@ public class FileMetadataUpdate {
             this.tags = tagsString != null ? new FileTags(tagsString) : null;
             return this;
         }
-        
+
         /**
          * 设置自定义元数据（Map）
          */
@@ -45,7 +54,7 @@ public class FileMetadataUpdate {
             this.customMetadata = metadata != null ? new CustomMetadata(metadata) : null;
             return this;
         }
-        
+
         /**
          * 合并自定义元数据（追加或覆盖键值对）
          */
@@ -59,6 +68,10 @@ public class FileMetadataUpdate {
                 this.customMetadata = CustomMetadata.of(newMap);
             }
             return this;
+        }
+
+        public FileMetadataUpdate build() {
+            return new FileMetadataUpdate(filename, contentType, tags, customMetadata);
         }
     }
 }

@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import tech.icc.filesrv.common.constants.SystemConstant;
+import tech.icc.filesrv.common.exception.NotFoundException;
 import tech.icc.filesrv.common.exception.validation.AccessDeniedException;
-import tech.icc.filesrv.common.exception.validation.FileNotFoundException;
 import tech.icc.filesrv.common.vo.file.AccessControl;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
 import tech.icc.filesrv.core.application.entrypoint.assembler.FileInfoAssembler;
@@ -73,7 +73,7 @@ public class StaticResourceController {
         FileInfoDto dto = service.getFileInfo(fileKey)
                 .orElseThrow(() -> {
                     log.warn("[StaticResource] File not found, fileKey={}", fileKey);
-                    return new FileNotFoundException(fileKey);
+                    return new NotFoundException.FileNotFoundException(fileKey);
                 });
 
         // 检查是否为公开文件

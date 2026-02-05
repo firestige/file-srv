@@ -10,8 +10,8 @@ import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tech.icc.filesrv.common.exception.NotFoundException;
 import tech.icc.filesrv.common.exception.validation.InvalidTaskIdException;
-import tech.icc.filesrv.common.exception.validation.TaskNotFoundException;
 import tech.icc.filesrv.common.vo.task.CallbackConfig;
 import tech.icc.filesrv.common.vo.task.FailureDetail;
 import tech.icc.filesrv.common.vo.task.FileRequest;
@@ -31,7 +31,6 @@ import tech.icc.filesrv.common.spi.executor.CallbackTaskPublisher;
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
 import tech.icc.filesrv.core.domain.tasks.TaskRepository;
 import tech.icc.filesrv.core.infra.file.LocalFileManager;
-import tech.icc.filesrv.common.exception.validation.PluginNotFoundException;
 import tech.icc.filesrv.core.infra.plugin.PluginRegistry;
 import tech.icc.filesrv.common.spi.storage.PartETagInfo;
 import tech.icc.filesrv.common.spi.storage.StorageAdapter;
@@ -408,12 +407,12 @@ public class TaskService {
         // 2. 布隆过滤器快速检查
         if (!idValidator.mightExist(taskId)) {
             log.debug("Task not in bloom filter: taskId={}", taskId);
-            throw new TaskNotFoundException(taskId);
+            throw new NotFoundException.TaskNotFoundException(taskId);
         }
 
         // 3. 查询数据库（缓存由 Repository 层处理）
         return taskRepository.findByTaskId(taskId)
-                .orElseThrow(() -> new TaskNotFoundException(taskId));
+                .orElseThrow(() -> new NotFoundException.TaskNotFoundException(taskId));
     }
 
     private void validateCallbacks(List<CallbackConfig> cfgs) {
@@ -423,7 +422,7 @@ public class TaskService {
         for (CallbackConfig cfg : cfgs) {
             String trimmed = cfg.name().trim();
             if (!trimmed.isEmpty() && !pluginRegistry.hasPlugin(trimmed)) {
-                throw new PluginNotFoundException(trimmed);
+                throw new NotFoundException.PluginNotFoundException(trimmed);
             }
         }
     }

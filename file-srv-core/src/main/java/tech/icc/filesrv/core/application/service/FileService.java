@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import tech.icc.filesrv.common.constants.ResultCode;
 import tech.icc.filesrv.common.exception.DataCorruptedException;
-import tech.icc.filesrv.common.exception.validation.FileNotFoundException;
+import tech.icc.filesrv.common.exception.NotFoundException;
 import tech.icc.filesrv.common.exception.validation.FileNotReadyException;
 import tech.icc.filesrv.common.exception.FileServiceException;
 import tech.icc.filesrv.common.exception.validation.PayloadTooLargeException;
@@ -275,7 +275,7 @@ public class FileService {
         
         // 1. 获取 PENDING 的 FileReference
         FileReference reference = fileReferenceRepository.findByFKey(fKey)
-                .orElseThrow(() -> new FileNotFoundException(fKey));
+                .orElseThrow(() -> new NotFoundException.FileNotFoundException(fKey));
         
         if (reference.isBound()) {
             log.warn("File already activated: fKey={}", fKey);
@@ -341,7 +341,7 @@ public class FileService {
         log.debug("Deleting file: fKey={}", fileKey);
 
         FileReference reference = fileReferenceRepository.findByFKey(fileKey)
-                .orElseThrow(() -> new FileNotFoundException(fileKey));
+                .orElseThrow(() -> new NotFoundException.FileNotFoundException(fileKey));
 
         // 减少引用计数
         if (reference.isBound()) {
@@ -407,23 +407,23 @@ public class FileService {
      *
      * @param fileKey 文件唯一标识 (fKey)
      * @return 存储访问信息（包含副本和适配器）
-     * @throws FileNotFoundException   文件不存在
+     * @throws NotFoundException.FileNotFoundException   文件不存在
      * @throws FileNotReadyException   文件未就绪（PENDING 状态）
      * @throws DataCorruptedException  数据一致性异常（物理文件丢失或无可用副本）
      */
     private StorageAccess resolveStorageAccess(String fileKey) {
         FileReference reference = fileReferenceRepository.findByFKey(fileKey)
-                .orElseThrow(() -> new FileNotFoundException(fileKey));
+                .orElseThrow(() -> new NotFoundException.FileNotFoundException(fileKey));
 
         if (!reference.isBound()) {
             throw new FileNotReadyException(fileKey);
         }
 
         FileInfo fileInfo = fileInfoRepository.findByContentHash(reference.contentHash())
-                .orElseThrow(() -> DataCorruptedException.withoutStack("Physical file missing: " + reference.contentHash()));
+                .orElseThrow(() -> new DataCorruptedException("Physical file missing: " + reference.contentHash()));
 
         StorageCopy primaryCopy = fileInfo.getPrimaryCopy()
-                .orElseThrow(() -> DataCorruptedException.withoutStack("No available copy: " + reference.contentHash()));
+                .orElseThrow(() -> new DataCorruptedException("No available copy: " + reference.contentHash()));
 
         StorageAdapter adapter = storageRoutingService.getAdapter(primaryCopy.nodeId());
 
@@ -517,26 +517,26 @@ public class FileService {
         if (update == null || !update.hasUpdates()) {
             log.debug("No metadata updates for fKey={}", fKey);
             return fileReferenceRepository.findByFKey(fKey)
-                    .orElseThrow(() -> new FileNotFoundException(fKey));
+                    .orElseThrow(() -> new NotFoundException.FileNotFoundException(fKey));
         }
 
         log.info("Applying metadata updates: fKey={}, update={}", fKey, update);
 
         FileReference ref = fileReferenceRepository.findByFKey(fKey)
-                .orElseThrow(() -> new FileNotFoundException(fKey));
+                .orElseThrow(() -> new NotFoundException.FileNotFoundException(fKey));
 
         // 应用更新
-        if (update.getFilename() != null) {
-            ref = ref.rename(update.getFilename());
+        if (update.filename() != null) {
+            ref = ref.rename(update.filename());
         }
-        if (update.getContentType() != null) {
-            ref = ref.withContentType(update.getContentType());
+        if (update.contentType() != null) {
+            ref = ref.withContentType(update.contentType());
         }
-        if (update.getTags() != null) {
-            ref = ref.withTags(update.getTags());
+        if (update.tags() != null) {
+            ref = ref.withTags(update.tags());
         }
-        if (update.getCustomMetadata() != null) {
-            ref = ref.withMetadata(update.getCustomMetadata());
+        if (update.customMetadata() != null) {
+            ref = ref.withMetadata(update.customMetadata());
         }
 
         ref = fileReferenceRepository.save(ref);

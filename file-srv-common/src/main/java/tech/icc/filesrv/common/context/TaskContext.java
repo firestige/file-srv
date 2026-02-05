@@ -244,7 +244,7 @@ public class TaskContext {
             return FileMetadataUpdate.builder();
         }
         // 使用 toBuilder() 从现有状态创建 Builder
-        return current.toBuilder();
+        return FileMetadataUpdate.builder();
     }
 
     /**

@@ -2,7 +2,6 @@ package tech.icc.filesrv.core.infra.executor.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tech.icc.filesrv.common.context.TaskContext;
 import tech.icc.filesrv.common.spi.plugin.PluginResult;
@@ -19,7 +18,7 @@ import tech.icc.filesrv.core.infra.executor.exception.CallbackExecutionException
 import tech.icc.filesrv.core.infra.executor.exception.CallbackTimeoutException;
 import tech.icc.filesrv.core.infra.file.LocalFileManager;
 import tech.icc.filesrv.core.infra.plugin.PluginRegistry;
-import tech.icc.filesrv.core.callback.PluginStorageService;
+import tech.icc.filesrv.common.spi.plugin.PluginStorageService;
 import tech.icc.filesrv.common.spi.plugin.PluginStorageServiceAware;
 import tech.icc.filesrv.common.domain.events.DerivedFilesAddedEvent;
 import tech.icc.filesrv.common.domain.events.TaskCompletedEvent;

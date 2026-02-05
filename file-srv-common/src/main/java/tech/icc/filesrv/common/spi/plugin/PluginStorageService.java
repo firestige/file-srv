@@ -1,4 +1,7 @@
-package tech.icc.filesrv.core.callback;
+package tech.icc.filesrv.common.spi.plugin;
+
+import com.sun.source.util.Plugin;
+import tech.icc.filesrv.common.exception.FileServiceException;
 
 import java.io.InputStream;
 import java.time.Duration;
@@ -33,7 +36,6 @@ import java.time.Duration;
  * </pre>
  *
  * @see Plugin
- * @see DefaultCallbackChainRunner
  */
 public interface PluginStorageService {
 
@@ -49,7 +51,7 @@ public interface PluginStorageService {
      * @param contentType MIME类型（如 "video/mp4"）
      * @param fileSize 文件大小（字节数），用于优化分片策略
      * @return 上传成功后的文件唯一标识（fKey）
-     * @throws StorageException 上传失败（网络错误、存储服务不可用等）
+     * @throws FileServiceException 上传失败（网络错误、存储服务不可用等）
      * @throws IllegalArgumentException inputStream 为 null 或 fileSize <= 0
      */
     String uploadLargeFile(InputStream inputStream, String fileName, String contentType, long fileSize);
@@ -64,7 +66,7 @@ public interface PluginStorageService {
      * @param fkey 文件唯一标识
      * @return 文件输入流（需调用方关闭）
      * @throws FileNotFoundException 文件不存在
-     * @throws StorageException 下载失败（网络错误、权限不足等）
+     * @throws FileServiceException 下载失败（网络错误、权限不足等）
      * @throws IllegalArgumentException fkey 为 null 或空字符串
      */
     InputStream downloadFile(String fkey);
@@ -77,7 +79,7 @@ public interface PluginStorageService {
      * </p>
      *
      * @param fkey 文件唯一标识
-     * @throws StorageException 删除失败（权限不足、网络错误等）
+     * @throws FileServiceException 删除失败（权限不足、网络错误等）
      * @throws IllegalArgumentException fkey 为 null 或空字符串
      */
     void deleteFile(String fkey);
@@ -97,7 +99,7 @@ public interface PluginStorageService {
      * @param validity 有效期（从当前时间起算）
      * @return 临时访问URL（包含签名和过期时间戳）
      * @throws FileNotFoundException 文件不存在
-     * @throws StorageException 生成URL失败（存储服务不支持、网络错误等）
+     * @throws FileServiceException 生成URL失败（存储服务不支持、网络错误等）
      * @throws IllegalArgumentException fkey 为 null 或空字符串，或 validity 为负数
      */
     String getTemporaryUrl(String fkey, Duration validity);
@@ -111,39 +113,10 @@ public interface PluginStorageService {
      * @param fkey 文件唯一标识
      * @return 临时访问URL
      * @throws FileNotFoundException 文件不存在
-     * @throws StorageException 生成URL失败
+     * @throws FileServiceException 生成URL失败
      * @throws IllegalArgumentException fkey 为 null 或空字符串
      */
     default String getTemporaryUrl(String fkey) {
         return getTemporaryUrl(fkey, Duration.ofHours(1));
-    }
-
-    /**
-     * 存储异常基类
-     */
-    class StorageException extends RuntimeException {
-        public StorageException(String message) {
-            super(message);
-        }
-
-        public StorageException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
-
-    /**
-     * 文件未找到异常
-     */
-    class FileNotFoundException extends StorageException {
-        private final String fkey;
-
-        public FileNotFoundException(String fkey) {
-            super("File not found: " + fkey);
-            this.fkey = fkey;
-        }
-
-        public String getFkey() {
-            return fkey;
-        }
     }
 }

@@ -13,16 +13,7 @@ import tech.icc.filesrv.common.constants.ResultCode;
  * 这是服务端问题（500），需要运维介入排查。
  */
 public class DataCorruptedException extends FileServiceException {
-
-    public static DataCorruptedException withoutStack(String message) {
-        return new DataCorruptedException(message, null, false, true);
-    }
-
-    public static DataCorruptedException withStack(String message, Throwable cause) {
-        return new DataCorruptedException(message, cause, false, false);
-    }
-
-    private DataCorruptedException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-        super(ResultCode.DATA_CORRUPTED, message, cause, enableSuppression, writableStackTrace);
+    public DataCorruptedException(String message) {
+        super(ResultCode.DATA_CORRUPTED, message, null);
     }
 }

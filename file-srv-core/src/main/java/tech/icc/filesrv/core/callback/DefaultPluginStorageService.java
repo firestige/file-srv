@@ -3,6 +3,10 @@ package tech.icc.filesrv.core.callback;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
+import tech.icc.filesrv.common.constants.ResultCode;
+import tech.icc.filesrv.common.exception.FileServiceException;
+import tech.icc.filesrv.common.exception.NotFoundException;
+import tech.icc.filesrv.common.spi.plugin.PluginStorageService;
 import tech.icc.filesrv.common.spi.storage.StorageAdapter;
 import tech.icc.filesrv.common.spi.storage.StorageResult;
 
@@ -63,7 +67,7 @@ public class DefaultPluginStorageService implements PluginStorageService {
             return fkey;
         } catch (Exception e) {
             log.error("Upload failed: name={}, size={}", fileName, fileSize, e);
-            throw new StorageException("Failed to upload file: " + fileName, e);
+            throw new FileServiceException(ResultCode.INTERNAL_ERROR, "Failed to upload file: " + fileName, e);
         }
     }
 
@@ -75,17 +79,17 @@ public class DefaultPluginStorageService implements PluginStorageService {
             log.debug("Downloading file: fkey={}", fkey);
             Resource resource = storageAdapter.download(fkey);
             if (resource == null) {
-                throw new FileNotFoundException(fkey);
+                throw new NotFoundException.FileNotFoundException(fkey);
             }
             return resource.getInputStream();
         } catch (IOException e) {
             log.error("Download failed (IO error): fkey={}", fkey, e);
-            throw new StorageException("Failed to download file: " + fkey, e);
-        } catch (FileNotFoundException e) {
+            throw new FileServiceException(ResultCode.INTERNAL_ERROR, "Failed to download file: " + fkey, e);
+        } catch (NotFoundException.FileNotFoundException e) {
             throw e;
         } catch (Exception e) {
             log.error("Download failed: fkey={}", fkey, e);
-            throw new StorageException("Failed to download file: " + fkey, e);
+            throw new FileServiceException(ResultCode.INTERNAL_ERROR, "Failed to download file: " + fkey, e);
         }
     }
 
@@ -98,7 +102,7 @@ public class DefaultPluginStorageService implements PluginStorageService {
             storageAdapter.delete(fkey);
         } catch (Exception e) {
             log.error("Delete failed: fkey={}", fkey, e);
-            throw new StorageException("Failed to delete file: " + fkey, e);
+            throw new FileServiceException(ResultCode.INTERNAL_ERROR, "Failed to delete file: " + fkey, e);
         }
     }
 
@@ -113,12 +117,12 @@ public class DefaultPluginStorageService implements PluginStorageService {
             log.debug("Generating temporary URL: fkey={}, validity={}", fkey, validity);
             String url = storageAdapter.generatePresignedUrl(fkey, validity);
             if (url == null) {
-                throw new StorageException("StorageAdapter returned null URL for fkey: " + fkey);
+                throw new FileServiceException(ResultCode.INTERNAL_ERROR, "StorageAdapter returned null URL for fkey: " + fkey, null);
             }
             return url;
         } catch (Exception e) {
             log.error("Failed to generate temporary URL: fkey={}, validity={}", fkey, validity, e);
-            throw new StorageException("Failed to generate temporary URL for: " + fkey, e);
+            throw new FileServiceException(ResultCode.INTERNAL_ERROR, "Failed to generate temporary URL for: " + fkey, e);
         }
     }
 

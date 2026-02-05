@@ -13,11 +13,9 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import tech.icc.filesrv.common.constants.ResultCode;
 import tech.icc.filesrv.common.context.Result;
+import tech.icc.filesrv.common.exception.NotFoundException;
 import tech.icc.filesrv.common.exception.validation.AccessDeniedException;
-import tech.icc.filesrv.common.exception.validation.FileNotFoundException;
 import tech.icc.filesrv.common.exception.FileServiceException;
-import tech.icc.filesrv.common.exception.validation.PluginNotFoundException;
-import tech.icc.filesrv.common.exception.validation.TaskNotFoundException;
 import tech.icc.filesrv.common.exception.validation.ValidationException;
 
 import java.util.stream.Collectors;
@@ -59,22 +57,27 @@ public class GlobalExceptionHandler {
     /**
      * 处理检查异常
      * <p>
-     * 返回 HTTP 404 状态码，适用于资源不存在的场景。
-     * 其他返回400状态码，适用于校验失败的场景。
+     * 返回400状态码，适用于校验失败的场景。
      */
     @ExceptionHandler(ValidationException.class)
-    public ResponseEntity<Result<Void>> handleFileOrTaskNotFoundException(ValidationException e) {
-        if (e instanceof FileNotFoundException || e instanceof TaskNotFoundException || e instanceof PluginNotFoundException) {
-            log.warn("not found exception: {}", e.getMessage());
-            return ResponseEntity
-                    .status(HttpStatus.NOT_FOUND)
-                    .body(Result.failure(e));
-        } else {
-            log.warn("Validation exception: {}", e.getMessage());
-            return ResponseEntity
-                    .status(HttpStatus.BAD_REQUEST)
-                    .body(Result.failure(e));
-        }
+    public ResponseEntity<Result<Void>> handleValidationException(ValidationException e) {
+        log.warn("Validation exception: {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(Result.failure(e));
+}
+
+    /**
+     * 处理检查异常
+     * <p>
+     * 返回 HTTP 404 状态码，适用于资源不存在的场景。
+     */
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<Result<Void>> handleNotFoundException(NotFoundException e) {
+        log.warn("not found exception: {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(Result.failure(e));
     }
 
     /**

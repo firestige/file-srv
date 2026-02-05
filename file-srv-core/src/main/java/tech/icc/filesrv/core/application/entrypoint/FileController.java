@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import tech.icc.filesrv.common.constants.SystemConstant;
 import tech.icc.filesrv.common.context.Result;
-import tech.icc.filesrv.common.exception.validation.FileNotFoundException;
+import tech.icc.filesrv.common.exception.NotFoundException;
 import tech.icc.filesrv.common.exception.validation.FileKeyTooLongException;
 import tech.icc.filesrv.common.vo.file.FileIdentity;
 import tech.icc.filesrv.core.application.entrypoint.assembler.FileInfoAssembler;
@@ -79,7 +79,7 @@ public class FileController {
                 .map(dto -> buildDownloadResponse(fileKey, dto))
                 .orElseThrow(() -> {
                     log.warn("[StaticResource] File not found, fileKey={}", fileKey);
-                    return new FileNotFoundException(fileKey);
+                    return new NotFoundException.FileNotFoundException(fileKey);
                 });
     }
 
@@ -124,7 +124,7 @@ public class FileController {
         FileInfoDto dto = service.getFileInfo(fileKey)
                 .orElseThrow(() -> {
                     log.warn("[GetMetadata] File not found, fileKey={}", fileKey);
-                    return new FileNotFoundException(fileKey);
+                    return new NotFoundException.FileNotFoundException(fileKey);
                 });
         
         FileMeta response = FileInfoAssembler.toFileMeta(dto);
