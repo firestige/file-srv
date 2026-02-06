@@ -4,8 +4,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
 import tech.icc.filesrv.common.context.TaskContext;
+import tech.icc.filesrv.common.spi.plugin.annotation.PluginInvoker;
 import tech.icc.filesrv.common.spi.plugin.PluginResult;
-import tech.icc.filesrv.common.spi.plugin.SharedPlugin;
 import tech.icc.filesrv.common.vo.file.FileMetadataUpdate;
 import tech.icc.filesrv.common.vo.task.CallbackConfig;
 import tech.icc.filesrv.common.vo.task.DerivedFile;
@@ -201,10 +201,11 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
      */
     private PluginResult executeWithLocalRetry(String taskId, String callbackName,
                                                 TaskContext context, int index) {
-        SharedPlugin plugin = pluginRegistry.getPlugin(callbackName);
+        PluginInvoker invoker = pluginRegistry.getPlugin(callbackName);
         
         // 如果 Plugin 实现了 PluginStorageServiceAware，注入存储服务
-        if (plugin instanceof PluginStorageServiceAware aware) {
+        Object pluginInstance = invoker.getPluginInstance();
+        if (pluginInstance instanceof PluginStorageServiceAware aware) {
             aware.setPluginStorageService(pluginStorageService);
         }
         int maxRetries = properties.retry().maxRetriesPerCallback();
@@ -221,7 +222,7 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
                 }
 
                 // 执行 callback（带超时）
-                Future<PluginResult> future = timeoutExecutor.submit(() -> plugin.apply(context));
+                Future<PluginResult> future = timeoutExecutor.submit(() -> invoker.invoke(context));
                 PluginResult result = future.get(callbackTimeout.toMillis(), TimeUnit.MILLISECONDS);
 
                 // 检查是否为可重试的失败

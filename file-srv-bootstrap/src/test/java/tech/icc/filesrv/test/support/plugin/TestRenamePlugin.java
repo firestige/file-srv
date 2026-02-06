@@ -29,10 +29,10 @@ public class TestRenamePlugin implements SharedPlugin {
         log.info("Context data for 'plugin_rename': {}", context.get("plugin_rename"));
         
         // 读取重命名模式参数
-        String pattern = context.getPluginString(name(), "pattern")
+        String pattern = context.getPluginParam("pattern")
                 .orElse("{filename}");
         
-        log.info("Got pattern from getPluginString: {}", pattern);
+        log.info("Got pattern from getPluginParam: {}", pattern);
         
         // 模拟重命名逻辑（实际不做任何操作）
         String originalFilename = context.getString(TaskContext.KEY_FILENAME).orElse("unknown");

@@ -85,9 +85,9 @@ public class HashVerifyPlugin implements SharedPlugin {
     @Override
     public PluginResult apply(TaskContext ctx) {
         // 1. 获取参数
-        String algorithm = ctx.getPluginString(PLUGIN_NAME, PARAM_ALGORITHM)
+        String algorithm = ctx.getPluginParam(PARAM_ALGORITHM)
                 .orElse(DEFAULT_ALGORITHM);
-        String expectedHash = ctx.getPluginString(PLUGIN_NAME, PARAM_EXPECTED)
+        String expectedHash = ctx.getPluginParam(PARAM_EXPECTED)
                 .orElse(null);
 
         // 2. 如果没有提供期望哈希值，跳过校验

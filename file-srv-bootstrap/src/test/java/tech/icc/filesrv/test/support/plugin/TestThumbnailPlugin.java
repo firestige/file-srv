@@ -20,10 +20,10 @@ public class TestThumbnailPlugin implements SharedPlugin {
     @Override
     public PluginResult apply(TaskContext context) {
         // 读取插件参数（如果有）
-        String width = context.getPluginString(name(), "width").orElse("200");
-        String height = context.getPluginString(name(), "height").orElse("200");
-        String quality = context.getPluginString(name(), "quality").orElse("80");
-        String format = context.getPluginString(name(), "format").orElse("jpeg");
+        String width = context.getPluginParam("width").orElse("200");
+        String height = context.getPluginParam("height").orElse("200");
+        String quality = context.getPluginParam("quality").orElse("80");
+        String format = context.getPluginParam("format").orElse("jpeg");
         
         // 模拟生成缩略图（实际不做任何操作）
         context.put("thumbnail.generated", "true");

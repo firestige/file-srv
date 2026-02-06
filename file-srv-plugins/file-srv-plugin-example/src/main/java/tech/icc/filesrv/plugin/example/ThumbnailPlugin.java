@@ -77,10 +77,10 @@ public class ThumbnailPlugin implements SharedPlugin {
     @Override
     public PluginResult apply(TaskContext ctx) {
         // 1. 获取参数
-        int width = ctx.getPluginInt(PLUGIN_NAME, PARAM_WIDTH).orElse(DEFAULT_WIDTH);
-        int height = ctx.getPluginInt(PLUGIN_NAME, PARAM_HEIGHT).orElse(DEFAULT_HEIGHT);
-        String format = ctx.getPluginString(PLUGIN_NAME, PARAM_FORMAT).orElse(DEFAULT_FORMAT);
-        int quality = ctx.getPluginInt(PLUGIN_NAME, PARAM_QUALITY).orElse(DEFAULT_QUALITY);
+        int width = ctx.getPluginParam(PARAM_WIDTH).map(Integer::parseInt).orElse(DEFAULT_WIDTH);
+        int height = ctx.getPluginParam(PARAM_HEIGHT).map(Integer::parseInt).orElse(DEFAULT_HEIGHT);
+        String format = ctx.getPluginParam(PARAM_FORMAT).orElse(DEFAULT_FORMAT);
+        int quality = ctx.getPluginParam(PARAM_QUALITY).map(Integer::parseInt).orElse(DEFAULT_QUALITY);
 
         // 2. 获取源文件路径
         String localFilePath = ctx.getLocalFilePath()

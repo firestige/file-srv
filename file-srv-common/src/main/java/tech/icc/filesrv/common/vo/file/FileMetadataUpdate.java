@@ -16,6 +16,10 @@ public record FileMetadataUpdate(String filename, String contentType, FileTags t
         return filename != null || contentType != null || tags != null || customMetadata != null;
     }
 
+    public FileMetadataUpdateBuilder toBuilder() {
+        return new FileMetadataUpdateBuilder(this);
+    }
+
     public static FileMetadataUpdateBuilder builder() {
         return new FileMetadataUpdateBuilder();
     }
@@ -28,6 +32,17 @@ public record FileMetadataUpdate(String filename, String contentType, FileTags t
         private String contentType;
         private FileTags tags;
         private CustomMetadata customMetadata;
+
+        private FileMetadataUpdateBuilder() {
+
+        }
+
+        private FileMetadataUpdateBuilder(FileMetadataUpdate update) {
+            this.filename = update.filename;
+            this.contentType = update.contentType;
+            this.tags = update.tags;
+            this.customMetadata = update.customMetadata;
+        }
 
         public FileMetadataUpdateBuilder filename(String filename) {
             this.filename = filename;

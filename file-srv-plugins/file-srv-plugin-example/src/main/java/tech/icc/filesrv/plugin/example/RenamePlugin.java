@@ -75,7 +75,7 @@ public class RenamePlugin implements SharedPlugin {
     @Override
     public PluginResult apply(TaskContext ctx) {
         // 1. 获取参数
-        String pattern = ctx.getPluginString(PLUGIN_NAME, PARAM_PATTERN)
+        String pattern = ctx.getPluginParam(PARAM_PATTERN)
                 .orElse(DEFAULT_PATTERN);
 
         String originalName = ctx.getString(TaskContextKeys.KEY_FILENAME).orElse("unknown");

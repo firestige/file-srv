@@ -1,4 +1,4 @@
-package tech.icc.filesrv.core.callback;
+package tech.icc.filesrv.core.infra.plugin;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
