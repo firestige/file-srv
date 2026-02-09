@@ -187,7 +187,7 @@ public class TestStorageConfig {
      * @return Hash 验证插件
      */
     @Bean
-    public SharedPlugin testHashVerifyPlugin() {
+    public TestHashVerifyPlugin testHashVerifyPlugin() {
         return new TestHashVerifyPlugin();
     }
 
@@ -199,7 +199,7 @@ public class TestStorageConfig {
      * @return 缩略图插件
      */
     @Bean
-    public SharedPlugin testThumbnailPlugin() {
+    public TestThumbnailPlugin testThumbnailPlugin() {
         return new TestThumbnailPlugin();
     }
 
@@ -211,7 +211,7 @@ public class TestStorageConfig {
      * @return 重命名插件
      */
     @Bean
-    public SharedPlugin testRenamePlugin() {
+    public TestRenamePlugin testRenamePlugin() {
         return new TestRenamePlugin();
     }
 

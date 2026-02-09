@@ -29,7 +29,8 @@ import java.util.Optional;
  * 参数注入规则：
  * <ul>
  *   <li>{@code @PluginParam("key")} → 从 PluginParamsContext 读取</li>
- *   <li>{@code @LocalFile} → 从 ExecutionInfo 读取 localFilePath</li>
+ *   <li>{@code @Loc
+ *   alFile} → 从 ExecutionInfo 读取 localFilePath</li>
  *   <li>{@code @TaskInfo("field")} → 从 ExecutionInfo 读取指定字段</li>
  *   <li>{@code @PluginOutput("key")} → 从 PluginOutputsContext 读取</li>
  *   <li>{@code TaskContext} (无注解) → 直接传入完整上下文</li>
