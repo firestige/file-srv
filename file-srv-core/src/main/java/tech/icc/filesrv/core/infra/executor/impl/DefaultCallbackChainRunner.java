@@ -31,6 +31,7 @@ import java.net.SocketTimeoutException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -137,12 +138,29 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
             }
 
             // 5. 应用元数据更新（如果有）
+            // 主文件元数据更新
             if (context.hasMetadataUpdates()) {
                 FileMetadataUpdate update = context.getMetadataUpdate().orElse(null);
                 if (update != null) {
-                    log.info("Applying metadata updates from callbacks: taskId={}, fKey={}", 
+                    log.info("Applying metadata updates for primary file: taskId={}, fKey={}", 
                             task.getTaskId(), task.getFKey());
                     fileService.applyMetadataUpdate(task.getFKey(), update);
+                }
+            }
+            
+            // 衍生文件元数据更新
+            Map<String, FileMetadataUpdate> derivedFileMetadata = context.getDerivedFileMetadataUpdates();
+            if (!derivedFileMetadata.isEmpty()) {
+                log.info("Applying metadata updates for derived files: taskId={}, count={}", 
+                        task.getTaskId(), derivedFileMetadata.size());
+                for (Map.Entry<String, FileMetadataUpdate> entry : derivedFileMetadata.entrySet()) {
+                    String derivedFKey = entry.getKey();
+                    FileMetadataUpdate update = entry.getValue();
+                    if (update != null && update.hasUpdates()) {
+                        log.debug("Applying metadata update: fKey={}, updates={}", 
+                                derivedFKey, update);
+                        fileService.applyMetadataUpdate(derivedFKey, update);
+                    }
                 }
             }
 
