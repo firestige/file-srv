@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import tech.icc.filesrv.common.constants.ResultCode;
+import tech.icc.filesrv.common.context.PendingActivationsContext;
 import tech.icc.filesrv.common.exception.DataCorruptedException;
 import tech.icc.filesrv.common.exception.NotFoundException;
 import tech.icc.filesrv.common.exception.validation.FileNotReadyException;
@@ -43,6 +44,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -308,6 +310,52 @@ public class FileService {
         log.info("File activated: fKey={}, contentHash={}", fKey, contentHash);
         
         return reference;
+    }
+
+    /**
+     * 批量激活文件
+     * <p>
+     * 用于批量处理衍生文件的激活，减少数据库交互次数，提高性能。
+     * 采用延迟激活机制：衍生文件先创建 PENDING 状态，在 callback chain 结束后统一激活。
+     *
+     * @param activations 待激活信息 Map：fKey -> PendingActivation(contentHash, storagePath, nodeId)
+     * @throws IllegalArgumentException 如果 activations 为空或包含无效数据
+     */
+    @Transactional
+    public void activateFilesInBatch(Map<String, PendingActivationsContext.PendingActivation> activations) {
+        if (activations == null || activations.isEmpty()) {
+            log.debug("No pending activations to process");
+            return;
+        }
+        
+        log.info("Batch activating {} files", activations.size());
+        int successCount = 0;
+        int failureCount = 0;
+        
+        for (var entry : activations.entrySet()) {
+            String fKey = entry.getKey();
+            var activation = entry.getValue();
+            
+            try {
+                activateFile(fKey, activation.contentHash(), activation.storagePath(), activation.nodeId());
+                successCount++;
+            } catch (Exception e) {
+                failureCount++;
+                log.error("Failed to activate file in batch: fKey={}, hash={}", fKey, activation.contentHash(), e);
+                // 继续处理其他文件，不中断整个批次
+            }
+        }
+        
+        log.info("Batch activation completed: success={}, failure={}", successCount, failureCount);
+        
+        if (failureCount > 0) {
+            throw new FileServiceException(
+                    ResultCode.INTERNAL_ERROR,
+                    String.format("Batch activation partially failed: %d/%d files activated successfully", 
+                            successCount, activations.size()),
+                    null
+            );
+        }
     }
 
     /**

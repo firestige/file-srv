@@ -19,6 +19,8 @@ public class ExecutionInfoContext {
     private String contentType;
     private Long fileSize;
     private String filename;
+    private String ownerId;
+    private String ownerName;
 
     public ExecutionInfoContext() {
     }
@@ -53,12 +55,21 @@ public class ExecutionInfoContext {
         return Optional.ofNullable(filename);
     }
 
+    public Optional<String> getOwnerId() {
+        return Optional.ofNullable(ownerId);
+    }
+
+    public Optional<String> getOwnerName() {
+        return Optional.ofNullable(ownerName);
+    }
+
     @Override
     public String toString() {
         return "ExecutionInfoContext{" +
                 "taskId='" + taskId + '\'' +
                 ", fileHash='" + fileHash + '\'' +
                 ", filename='" + filename + '\'' +
+                ", ownerId='" + ownerId + '\'' +
                 '}';
     }
 }

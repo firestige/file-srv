@@ -77,6 +77,9 @@ public class TaskContext {
     /** 衍生文件 */
     private final DerivedFilesContext derivedFiles;
 
+    /** 待激活文件 */
+    private final PendingActivationsContext pendingActivations;
+
     /** 任务ID（从executionInfo引用，便于访问） */
     private String taskId;
 
@@ -88,6 +91,7 @@ public class TaskContext {
         this.pluginOutputs = new PluginOutputsContext();
         this.fileMetadata = new FileMetadataContext();
         this.derivedFiles = new DerivedFilesContext();
+        this.pendingActivations = new PendingActivationsContext();
     }
 
     /**
@@ -101,6 +105,7 @@ public class TaskContext {
         this.pluginOutputs = new PluginOutputsContext();
         this.fileMetadata = new FileMetadataContext();
         this.derivedFiles = new DerivedFilesContext();
+        this.pendingActivations = new PendingActivationsContext();
     }
 
     /**
@@ -161,6 +166,13 @@ public class TaskContext {
         if (data == null || data.isEmpty()) {
             return;
         }
+        
+        // 反序列化 pendingActivations
+        Object activationsObj = data.get("_pendingActivations");
+        if (activationsObj instanceof List) {
+            pendingActivations.mergeFromMapList((List<Map<String, String>>) activationsObj);
+        }
+        
         migrateFromLegacyData(data);
     }
 
@@ -199,6 +211,13 @@ public class TaskContext {
      */
     public DerivedFilesContext derivedFiles() {
         return derivedFiles;
+    }
+
+    /**
+     * 获取待激活文件Context
+     */
+    public PendingActivationsContext pendingActivations() {
+        return pendingActivations;
     }
 
     // ==================== 任务ID管理 ====================
@@ -547,7 +566,14 @@ public class TaskContext {
      * 获取所有数据的可修改副本
      */
     public Map<String, Object> toMap() {
-        return new HashMap<>(asMap());
+        Map<String, Object> map = new HashMap<>(asMap());
+        
+        // 序列化 pendingActivations
+        if (!pendingActivations.isEmpty()) {
+            map.put("_pendingActivations", pendingActivations.toMapList());
+        }
+        
+        return map;
     }
 
     /**
@@ -650,6 +676,7 @@ public class TaskContext {
                 ", pluginParams=" + pluginParams.asMap().size() +
                 ", pluginOutputs=" + pluginOutputs.asMap().size() +
                 ", derivedFiles=" + derivedFiles.count() +
+                ", pendingActivations=" + pendingActivations.count() +
                 '}';
     }
 }

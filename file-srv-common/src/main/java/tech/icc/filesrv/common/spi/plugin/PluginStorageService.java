@@ -1,6 +1,7 @@
 package tech.icc.filesrv.common.spi.plugin;
 
 import com.sun.source.util.Plugin;
+import tech.icc.filesrv.common.context.TaskContext;
 import tech.icc.filesrv.common.exception.FileServiceException;
 
 import java.io.InputStream;
@@ -19,12 +20,14 @@ import java.time.Duration;
  *   <li><b>临时URL</b>: 生成带签名的临时访问链接</li>
  *   <li><b>自动清理</b>: 支持设置文件过期时间</li>
  *   <li><b>异常安全</b>: 上传失败自动清理已上传分片</li>
+ *   <li><b>延迟激活</b>: 文件先创建为 PENDING，统一在 callback 链结束后激活</li>
  * </ul>
  *
  * <h3>使用示例</h3>
  * <pre>
  * // 插件中上传转码后的视频
  * String fkey = storageService.uploadLargeFile(
+ *     context,  // TaskContext（用于记录待激活信息）
  *     transcodedStream,
  *     "video_transcoded_480p.mp4",
  *     "video/mp4",
@@ -45,16 +48,21 @@ public interface PluginStorageService {
      * 自动使用分片上传策略，适用于大文件场景（如10GB视频转码）。
      * 失败时自动清理已上传的分片。
      * </p>
+     * <p>
+     * <b>延迟激活机制</b>：文件会先创建为 PENDING 状态的 file_reference，
+     * 待激活信息会记录在 TaskContext 中，最终由 CallbackChainRunner 统一批量激活。
+     * </p>
      *
+     * @param context     任务上下文（用于记录待激活信息和获取 owner 信息）
      * @param inputStream 文件输入流（调用方负责关闭）
      * @param fileName 文件名（用于生成存储路径）
      * @param contentType MIME类型（如 "video/mp4"）
      * @param fileSize 文件大小（字节数），用于优化分片策略
      * @return 上传成功后的文件唯一标识（fKey）
      * @throws FileServiceException 上传失败（网络错误、存储服务不可用等）
-     * @throws IllegalArgumentException inputStream 为 null 或 fileSize <= 0
+     * @throws IllegalArgumentException context/inputStream 为 null 或 fileSize <= 0
      */
-    String uploadLargeFile(InputStream inputStream, String fileName, String contentType, long fileSize);
+    String uploadLargeFile(TaskContext context, InputStream inputStream, String fileName, String contentType, long fileSize);
 
     /**
      * 下载文件流

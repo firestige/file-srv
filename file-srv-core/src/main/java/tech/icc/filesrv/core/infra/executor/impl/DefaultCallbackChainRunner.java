@@ -10,6 +10,7 @@ import tech.icc.filesrv.common.vo.file.FileMetadataUpdate;
 import tech.icc.filesrv.common.vo.task.CallbackConfig;
 import tech.icc.filesrv.common.vo.task.DerivedFile;
 import tech.icc.filesrv.core.application.service.FileService;
+import tech.icc.filesrv.core.domain.files.FileReferenceRepository;
 import tech.icc.filesrv.core.domain.tasks.TaskAggregate;
 import tech.icc.filesrv.core.domain.tasks.TaskRepository;
 import tech.icc.filesrv.core.infra.executor.CallbackChainRunner;
@@ -63,6 +64,7 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
     private final ExecutorProperties properties;
     private final PluginStorageService pluginStorageService;
     private final FileService fileService;
+    private final FileReferenceRepository fileReferenceRepository;
     
     public DefaultCallbackChainRunner(TaskRepository taskRepository,
                                        PluginRegistry pluginRegistry,
@@ -71,7 +73,8 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
                                        ExecutorService timeoutExecutor,
                                        ExecutorProperties properties,
                                        PluginStorageService pluginStorageService,
-                                       FileService fileService) {
+                                       FileService fileService,
+                                       FileReferenceRepository fileReferenceRepository) {
         this.taskRepository = taskRepository;
         this.pluginRegistry = pluginRegistry;
         this.localFileManager = localFileManager;
@@ -80,6 +83,7 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
         this.properties = properties;
         this.pluginStorageService = pluginStorageService;
         this.fileService = fileService;
+        this.fileReferenceRepository = fileReferenceRepository;
     }
 
     @Override
@@ -99,6 +103,19 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
 
         // 1. 初始化 ExecutionInfo（关键修复：为注解注入提供数据源）
         context.setTaskId(task.getTaskId());
+        
+        // 从 FileReference 中获取 owner 信息
+        try {
+            var fileRefOpt = fileReferenceRepository.findByFKey(task.getFKey());
+            if (fileRefOpt.isPresent()) {
+                var owner = fileRefOpt.get().owner();
+                context.executionInfo().setOwnerId(owner.createdBy());
+                context.executionInfo().setOwnerName(owner.creatorName());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to load owner info from FileReference: fKey={}", task.getFKey(), e);
+        }
+        
         context.executionInfo().setFileHash(task.getHash());
         context.executionInfo().setContentType(task.getContentType());
         context.executionInfo().setFileSize(task.getTotalSize());
@@ -137,7 +154,26 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
                 context = task.getContext();
             }
 
-            // 5. 应用元数据更新（如果有）
+            // 5. 批量激活衍生文件（延迟激活机制）
+            if (!context.pendingActivations().isEmpty()) {
+                log.info("Batch activating derived files: taskId={}, count={}", 
+                        task.getTaskId(), context.pendingActivations().count());
+                try {
+                    fileService.activateFilesInBatch(context.pendingActivations().getAll());
+                    log.info("Derived files activated successfully: taskId={}", task.getTaskId());
+                } catch (Exception e) {
+                    log.error("Failed to activate derived files: taskId={}", task.getTaskId(), e);
+                    task.markFailed("Failed to activate derived files: " + e.getMessage());
+                    task = taskRepository.save(task);
+                    publishFailedEvent(task);
+                    throw new CallbackExecutionException(
+                            task.getTaskId(), "activateFiles", -1,
+                            "Failed to activate derived files", false, e
+                    );
+                }
+            }
+
+            // 6. 应用元数据更新（如果有）
             // 主文件元数据更新
             if (context.hasMetadataUpdates()) {
                 FileMetadataUpdate update = context.getMetadataUpdate().orElse(null);
@@ -164,14 +200,14 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
                 }
             }
 
-            // 6. 标记完成
+            // 7. 标记完成
             task.markCompleted();
             task = taskRepository.save(task);
             publishCompletedEvent(task);
             log.info("All callbacks completed: taskId={}", task.getTaskId());
 
         } finally {
-            // 6. 清理本地文件
+            // 8. 清理本地文件
             localFileManager.cleanup(task.getTaskId());
         }
     }
@@ -195,6 +231,11 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
                 publishDerivedFilesAddedEvent(task.getTaskId(), task.getFKey(), newDerivedFiles);
             }
             
+            // CRITICAL: 在 save 之前，将 plugin 修改后的 context 同步回 task
+            // 这样 save 时会序列化包含所有修改的 context（metadata、derivedFiles、pendingActivations 等）
+            // 如果不做这一步，save 会序列化 task 内部的旧 context，导致 plugin 的修改丢失
+            task.setContext(context);
+            
             // 推进并持久化（断点恢复关键）
             task.advanceCallback();
             task = taskRepository.save(task);
@@ -203,6 +244,7 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
 
         } else if (result instanceof PluginResult.Failure failure) {
             // 标记任务失败，停止链
+            task.setContext(context);  // 同步 context（即使失败也要保存 plugin 的修改）
             task.markFailed("Callback [" + callbackName + "] failed: " + failure.reason());
                 task = taskRepository.save(task);
             publishFailedEvent(task);
@@ -217,6 +259,7 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
         } else if (result instanceof PluginResult.Skip skip) {
             // 跳过当前 callback，继续下一个
             log.info("Callback skipped: {} - {}", callbackName, skip.reason());
+            task.setContext(context);  // 同步 context
             task.advanceCallback();
             task = taskRepository.save(task);
             return task;

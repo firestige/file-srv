@@ -4,20 +4,30 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import tech.icc.filesrv.common.constants.ResultCode;
+import tech.icc.filesrv.common.context.TaskContext;
 import tech.icc.filesrv.common.exception.FileServiceException;
 import tech.icc.filesrv.common.exception.NotFoundException;
+import tech.icc.filesrv.common.vo.audit.OwnerInfo;
+import tech.icc.filesrv.common.vo.file.CustomMetadata;
+import tech.icc.filesrv.common.vo.file.FileTags;
 import tech.icc.filesrv.common.spi.plugin.PluginStorageService;
 import tech.icc.filesrv.common.spi.storage.StorageAdapter;
 import tech.icc.filesrv.common.spi.storage.StorageResult;
+import tech.icc.filesrv.core.application.service.FileService;
+import tech.icc.filesrv.core.domain.services.DeduplicationService;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
+import java.util.UUID;
 
 /**
  * 插件存储服务默认实现
  * <p>
  * 基于 {@link StorageAdapter} 实现，支持大文件分片上传和临时URL生成。
+ * 衍生文件采用延迟激活机制：先创建 PENDING FileReference，在 callback chain 结束后批量激活。
  * </p>
  */
 @Slf4j
@@ -25,6 +35,8 @@ import java.time.Duration;
 public class DefaultPluginStorageService implements PluginStorageService {
 
     private final StorageAdapter storageAdapter;
+    private final DeduplicationService deduplicationService;
+    private final FileService fileService;
 
     /**
      * 分片上传阈值（默认5MB）
@@ -39,12 +51,20 @@ public class DefaultPluginStorageService implements PluginStorageService {
      */
     private static final long PART_SIZE = 5 * 1024 * 1024; // 5MB
 
-    public DefaultPluginStorageService(StorageAdapter storageAdapter) {
+    public DefaultPluginStorageService(StorageAdapter storageAdapter,
+                                        DeduplicationService deduplicationService,
+                                        FileService fileService) {
         this.storageAdapter = storageAdapter;
+        this.deduplicationService = deduplicationService;
+        this.fileService = fileService;
     }
 
     @Override
-    public String uploadLargeFile(InputStream inputStream, String fileName, String contentType, long fileSize) {
+    public String uploadLargeFile(TaskContext context, InputStream inputStream, 
+                                  String fileName, String contentType, long fileSize) {
+        if (context == null) {
+            throw new IllegalArgumentException("context cannot be null");
+        }
         if (inputStream == null) {
             throw new IllegalArgumentException("inputStream cannot be null");
         }
@@ -53,22 +73,48 @@ public class DefaultPluginStorageService implements PluginStorageService {
         }
 
         try {
-            log.info("Uploading large file: name={}, type={}, size={}", fileName, contentType, fileSize);
+            log.info("Uploading derived file: name={}, type={}, size={}", fileName, contentType, fileSize);
 
-            // 根据文件大小选择上传策略
-            String fkey;
-            if (fileSize > MULTIPART_THRESHOLD) {
-                fkey = uploadWithMultipart(inputStream, fileName, contentType, fileSize);
-            } else {
-                fkey = uploadDirect(inputStream, fileName, contentType, fileSize);
-            }
-
-            log.info("Upload completed: fkey={}", fkey);
-            return fkey;
+            // 1. 生成衍生文件的 fKey
+            String fKey = generateDerivedFileKey();
+            
+            // 2. 计算 xxHash（使用临时缓冲区避免多次读取）
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream((int) Math.min(fileSize, 10 * 1024 * 1024));
+            String contentHash = deduplicationService.computeHashAndCopy(inputStream, buffer);
+            byte[] content = buffer.toByteArray();
+            log.debug("Content hash computed: fKey={}, hash={}", fKey, contentHash);
+            
+            // 3. 上传到存储（使用 buffer 内容）
+            String storagePath = uploadDirect(content, fileName, contentType);
+            String nodeId = "default"; // TODO: 从 StorageAdapter 获取
+            log.debug("File uploaded to storage: fKey={}, path={}", fKey, storagePath);
+            
+            // 4. 创建 PENDING 状态的 FileReference
+            OwnerInfo owner = new OwnerInfo(
+                    context.executionInfo().getOwnerId().orElse(null),
+                    context.executionInfo().getOwnerName().orElse(null)
+            );
+            fileService.createPendingFile(fKey, fileName, fileSize, contentType, 
+                    owner, FileTags.empty(), CustomMetadata.empty());
+            log.debug("Pending file reference created: fKey={}", fKey);
+            
+            // 5. 记录待激活信息（由 CallbackChainRunner 统一激活）
+            context.pendingActivations().add(fKey, contentHash, storagePath, nodeId);
+            log.info("Derived file upload completed (pending activation): fKey={}, hash={}", fKey, contentHash);
+            
+            return fKey;
+            
         } catch (Exception e) {
             log.error("Upload failed: name={}, size={}", fileName, fileSize, e);
             throw new FileServiceException(ResultCode.INTERNAL_ERROR, "Failed to upload file: " + fileName, e);
         }
+    }
+    
+    /**
+     * 生成衍生文件的 fKey
+     */
+    private String generateDerivedFileKey() {
+        return "derived_" + UUID.randomUUID().toString().replace("-", "");
     }
 
     @Override
@@ -129,20 +175,11 @@ public class DefaultPluginStorageService implements PluginStorageService {
     /**
      * 直接上传（小文件）
      */
-    private String uploadDirect(InputStream inputStream, String fileName, String contentType, long fileSize) {
-        // StorageAdapter.upload 返回 StorageResult，我们需要从中提取路径作为 fkey
-        StorageResult result = storageAdapter.upload(fileName, inputStream, contentType);
-        return result.path(); // 路径即为 fkey
-    }
-
-    /**
-     * 分片上传（大文件）
-     */
-    private String uploadWithMultipart(InputStream inputStream, String fileName, String contentType, long fileSize) {
-        // TODO: 实现真正的分片上传逻辑
-        // 当前版本暂时使用直接上传，后续迭代补充
-        log.warn("Multipart upload not fully implemented yet, falling back to direct upload");
-        return uploadDirect(inputStream, fileName, contentType, fileSize);
+    private String uploadDirect(byte[] content, String fileName, String contentType) throws IOException {
+        try (InputStream inputStream = new ByteArrayInputStream(content)) {
+            StorageResult result = storageAdapter.upload(fileName, inputStream, contentType);
+            return result.path(); // 路径即为 storage path
+        }
     }
 
     private void validateFkey(String fkey) {
