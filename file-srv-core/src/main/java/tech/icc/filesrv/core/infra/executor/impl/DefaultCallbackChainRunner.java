@@ -96,9 +96,17 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
         
         TaskContext context = task.getContext();
 
-        // 1. 准备本地文件（只下载一次）
+        // 1. 初始化 ExecutionInfo（关键修复：为注解注入提供数据源）
+        context.setTaskId(task.getTaskId());
+        context.executionInfo().setFileHash(task.getHash());
+        context.executionInfo().setContentType(task.getContentType());
+        context.executionInfo().setFileSize(task.getTotalSize());
+        context.executionInfo().setFilename(task.getFilename());
+        context.executionInfo().setStoragePath(task.getStoragePath());
+
+        // 2. 准备本地文件（只下载一次）
         Path localPath = localFileManager.prepareLocalFile(task.getStoragePath(), task.getTaskId());
-        context.put(TaskContext.KEY_LOCAL_FILE_PATH, localPath.toString());
+        context.executionInfo().setLocalFilePath(localPath.toString());
 
         try {
             List<CallbackConfig> callbacks = task.getCallbacks();
