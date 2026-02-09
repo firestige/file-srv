@@ -60,8 +60,8 @@ public class TaskAggregate {
         this.callbacks = cfgs != null ? new ArrayList<>(cfgs) : new ArrayList<>();
         this.currentCallbackIndex = 0;
         this.parts = new ArrayList<>();
-        Map<String, Map<String, String>> params = buildParams(callbacks);
-        this.context = new TaskContext(params);
+        // 直接使用 callbacks 列表初始化 TaskContext，支持新式 PluginParamsContext
+        this.context = new TaskContext(this.callbacks);
         this.createdAt = Instant.now();
         this.expiresAt = this.createdAt.plus(expireAfter);
     }

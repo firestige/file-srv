@@ -174,8 +174,18 @@ public class TaskEntity {
         task.setCallbacks(callbacks != null ? new ArrayList<>(callbacks) : new ArrayList<>());
         task.setCurrentCallbackIndex(currentCallbackIndex != null ? currentCallbackIndex : 0);
         
-        // 处理 context 的类型转换
-        task.setContext(context != null ? new TaskContext(convertContextTypes(context)) : new TaskContext());
+        // 从 callbacks 创建 TaskContext（正确初始化 PluginParamsContext）
+        TaskContext taskContext;
+        if (callbacks != null && !callbacks.isEmpty()) {
+            taskContext = new TaskContext(callbacks);
+            // 合并持久化的 context 数据（插件输出、衍生文件等）
+            if (context != null) {
+                taskContext.mergeFromMap(convertContextTypes(context));
+            }
+        } else {
+            taskContext = context != null ? new TaskContext(convertContextTypes(context)) : new TaskContext();
+        }
+        task.setContext(taskContext);
         
         task.setFailureReason(failureReason);
         task.setCreatedAt(createdAt);

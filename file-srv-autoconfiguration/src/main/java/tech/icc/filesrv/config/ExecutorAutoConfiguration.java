@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import tech.icc.filesrv.common.spi.plugin.PluginStorageService;
+import tech.icc.filesrv.core.application.service.FileService;
 import tech.icc.filesrv.core.domain.tasks.TaskRepository;
 import tech.icc.filesrv.common.config.ExecutorProperties;
 import tech.icc.filesrv.common.spi.event.TaskEventPublisher;
@@ -61,7 +62,7 @@ public class ExecutorAutoConfiguration {
             ExecutorService callbackTimeoutExecutor,
             ExecutorProperties properties,
             PluginStorageService pluginStorageService,
-            tech.icc.filesrv.core.application.service.FileService fileService) {
+            FileService fileService) {
         return new DefaultCallbackChainRunner(
                 taskRepository,
                 pluginRegistry,

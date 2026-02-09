@@ -151,6 +151,19 @@ public class TaskContext {
         }
     }
 
+    /**
+     * 合并持久化数据（用于从数据库还原）
+     * <p>
+     * 注意：PluginParamsContext 已由构造器初始化，此方法只合并输出数据
+     */
+    @SuppressWarnings("unchecked")
+    public void mergeFromMap(Map<String, ?> data) {
+        if (data == null || data.isEmpty()) {
+            return;
+        }
+        migrateFromLegacyData(data);
+    }
+
     // ==================== 分层Context访问器 ====================
 
     /**

@@ -121,6 +121,9 @@ public class DefaultCallbackChainRunner implements CallbackChainRunner {
                 log.info("Executing callback: taskId={}, callback={}, index={}",
                         task.getTaskId(), callbackName, i);
 
+                // 同步 PluginParamsContext 的当前索引（关键：确保读取正确的插件参数）
+                context.pluginParams().setCurrentIndex(i);
+
                 // 3. 执行单个 callback（带本地重试）
                 PluginResult result = executeWithLocalRetry(task.getTaskId(), callbackName, context, i);
 
