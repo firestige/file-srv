@@ -114,7 +114,12 @@ public class FileService {
         long size = file.getSize();
 
         // 2. 创建文件引用（PENDING 状态），包含 tags 和 customMetadata
-        FileReference reference = FileReference.create(filename, contentType, size, owner, fileTags, metadata);
+        // fKey 已在 Controller 层通过 @UniqueFKey 验证
+        String userProvidedFKey = fileInfo.identity().fKey();
+        FileReference reference = FileReference.create(
+                userProvidedFKey,  // 传入用户 fKey（可能为 null）
+                filename, contentType, size, owner, fileTags, metadata
+        );
         reference = fileReferenceRepository.save(reference);
         log.debug("Created file reference: fKey={}", reference.fKey());
 

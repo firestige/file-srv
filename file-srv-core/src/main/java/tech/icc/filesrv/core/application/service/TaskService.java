@@ -89,8 +89,21 @@ public class TaskService {
         // 验证所有 callback 插件都存在
         validateCallbacks(cfgs);
 
+        // fKey 已在 Controller 层通过 @UniqueFKey 验证
+        String userProvidedFKey = request.fKey();
+        String fKey;
+        
+        if (userProvidedFKey != null && !userProvidedFKey.isBlank()) {
+            // 用户提供了 fKey
+            fKey = userProvidedFKey.trim();
+            log.info("Using user-provided fKey: {}", fKey);
+        } else {
+            // 未提供，自动生成
+            fKey = generateFKey(request);
+            log.debug("Generated fKey: {}", fKey);
+        }
+
         // 创建任务聚合（传递文件元数据）
-        String fKey = generateFKey(request);
         TaskAggregate task = TaskAggregate.create(
                 fKey, 
                 request.contentHash(), 

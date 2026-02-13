@@ -1,6 +1,8 @@
 package tech.icc.filesrv.core.application.entrypoint.model;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import tech.icc.filesrv.core.application.entrypoint.validation.UniqueFKey;
 
 import java.util.Map;
 
@@ -11,6 +13,21 @@ import java.util.Map;
  * 文件内容从 MultipartFile 获取。
  */
 public class FileUploadRequest {
+
+        /**
+         * 用户自定义文件标识（可选）
+         * <p>
+         * 若不提供则自动生成 UUID。若提供则必须：
+         * <ul>
+         *   <li>长度 8-64 字符</li>
+         *   <li>只包含字母、数字、连字符、下划线</li>
+         *   <li>全局唯一（不与已有文件冲突）</li>
+         * </ul>
+         */
+        @Pattern(regexp = "^[a-zA-Z0-9_-]{8,64}$",
+                 message = "fKey 长度必须为 8-64 字符，只能包含字母数字连字符下划线")
+        @UniqueFKey
+        private String fKey;
 
         /** 文件名称（必填，由用户指定或前端处理后传入） */
         @NotBlank(message = "文件名不能为空")
@@ -35,6 +52,14 @@ public class FileUploadRequest {
 
         /** 自定义元数据（key-value） */
         private Map<String, String> customMetadata;
+
+        public String getFKey() {
+                return fKey;
+        }
+
+        public void setFKey(String fKey) {
+                this.fKey = fKey;
+        }
 
         public String getFileName() {
                 return fileName;

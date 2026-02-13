@@ -43,6 +43,7 @@ public record FileReference(
     /**
      * 创建新的文件引用（未绑定内容）
      *
+     * @param fKey        用户指定的 fKey（若为 null 或空白则自动生成）
      * @param filename    文件名
      * @param contentType MIME 类型
      * @param size        文件大小
@@ -51,10 +52,15 @@ public record FileReference(
      * @param metadata    自定义元数据
      * @return 新文件引用（contentHash 为 null）
      */
-    public static FileReference create(String filename, String contentType, Long size, 
+    public static FileReference create(String fKey, String filename, String contentType, Long size, 
                                        OwnerInfo owner, FileTags tags, CustomMetadata metadata) {
+        // 若未提供 fKey，则自动生成
+        String finalFKey = (fKey == null || fKey.isBlank()) 
+                ? UUID.randomUUID().toString()  // TODO: 升级为 UUID v7
+                : fKey.trim();
+        
         return new FileReference(
-                UUID.randomUUID().toString(),  // TODO: 升级为 UUID v7
+                finalFKey,
                 null,  // 待绑定
                 filename,
                 contentType,
@@ -66,6 +72,22 @@ public record FileReference(
                 metadata != null ? metadata : CustomMetadata.empty(),
                 AuditInfo.now()
         );
+    }
+
+    /**
+     * 创建新的文件引用（未绑定内容）- 向后兼容重载
+     *
+     * @param filename    文件名
+     * @param contentType MIME 类型
+     * @param size        文件大小
+     * @param owner       所有者
+     * @param tags        文件标签
+     * @param metadata    自定义元数据
+     * @return 新文件引用（contentHash 为 null）
+     */
+    public static FileReference create(String filename, String contentType, Long size, 
+                                       OwnerInfo owner, FileTags tags, CustomMetadata metadata) {
+        return create(null, filename, contentType, size, owner, tags, metadata);
     }
 
     /**

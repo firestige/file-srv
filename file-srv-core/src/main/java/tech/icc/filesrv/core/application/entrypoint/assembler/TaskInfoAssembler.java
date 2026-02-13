@@ -66,6 +66,7 @@ public final class TaskInfoAssembler {
 
         // 组装 FileRequest
         return FileRequest.builder()
+                .fKey(request.getFKey())  // 传递用户提供的 fKey
                 .filename(request.getFilename())
                 .contentType(request.getContentType())
                 .size(request.getSize())

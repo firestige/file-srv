@@ -50,6 +50,7 @@ public final class FileInfoAssembler {
 
         // 构建 FileIdentity（使用请求参数，不使用 MultipartFile 的原始值）
         FileIdentity identity = FileIdentity.builder()
+            .fKey(request.getFKey())  // 传递用户提供的 fKey（可能为 null）
             .fileName(request.getFileName())
             .fileType(request.getFileType())
             .fileSize(file != null ? file.getSize() : null)

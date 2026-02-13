@@ -10,6 +10,7 @@ import tech.icc.filesrv.common.vo.file.FileTags;
 /**
  * File request - original request submitted when creating task.
  *
+ * @param fKey        user-specified file key (optional, auto-generated if not provided)
  * @param filename    intended file name
  * @param contentType expected MIME type
  * @param size        expected file size in bytes
@@ -21,6 +22,7 @@ import tech.icc.filesrv.common.vo.file.FileTags;
  */
 @Builder
 public record FileRequest(
+        String fKey,
         String filename,
         String contentType,
         Long size,
