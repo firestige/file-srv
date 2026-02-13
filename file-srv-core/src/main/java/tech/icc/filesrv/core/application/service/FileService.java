@@ -535,6 +535,8 @@ public class FileService {
                 .owner(ref.owner())
                 .audit(ref.audit())
                 .access(ref.access())
+                .fileTags(ref.tags())
+                .metadata(ref.metadata())
                 .build();
     }
 

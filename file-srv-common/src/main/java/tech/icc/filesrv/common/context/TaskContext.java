@@ -173,6 +173,53 @@ public class TaskContext {
             pendingActivations.mergeFromMapList((List<Map<String, String>>) activationsObj);
         }
         
+        // 反序列化主文件的元数据更新
+        Object primaryMetadataObj = data.get("_primaryMetadata");
+        if (primaryMetadataObj instanceof Map) {
+            Map<String, Object> updateMap = (Map<String, Object>) primaryMetadataObj;
+            fileMetadata.updatePrimaryMetadata(builder -> {
+                if (updateMap.containsKey("filename")) {
+                    builder.filename((String) updateMap.get("filename"));
+                }
+                if (updateMap.containsKey("contentType")) {
+                    builder.contentType((String) updateMap.get("contentType"));
+                }
+                if (updateMap.containsKey("tags")) {
+                    builder.tags((String) updateMap.get("tags"));
+                }
+                if (updateMap.containsKey("customMetadata")) {
+                    builder.customMetadata((Map<String, String>) updateMap.get("customMetadata"));
+                }
+            });
+        }
+        
+        // 反序列化衍生文件的元数据更新
+        Object derivedMetadataObj = data.get("_derivedFileMetadata");
+        if (derivedMetadataObj instanceof Map) {
+            Map<String, Map<String, Object>> derivedMetadataMap = 
+                    (Map<String, Map<String, Object>>) derivedMetadataObj;
+            for (Map.Entry<String, Map<String, Object>> entry : derivedMetadataMap.entrySet()) {
+                String fKey = entry.getKey();
+                Map<String, Object> updateMap = entry.getValue();
+                
+                // 重建 FileMetadataUpdate
+                fileMetadata.updateDerivedFileMetadata(fKey, builder -> {
+                    if (updateMap.containsKey("filename")) {
+                        builder.filename((String) updateMap.get("filename"));
+                    }
+                    if (updateMap.containsKey("contentType")) {
+                        builder.contentType((String) updateMap.get("contentType"));
+                    }
+                    if (updateMap.containsKey("tags")) {
+                        builder.tags((String) updateMap.get("tags"));
+                    }
+                    if (updateMap.containsKey("customMetadata")) {
+                        builder.customMetadata((Map<String, String>) updateMap.get("customMetadata"));
+                    }
+                });
+            }
+        }
+        
         migrateFromLegacyData(data);
     }
 
@@ -571,6 +618,57 @@ public class TaskContext {
         // 序列化 pendingActivations
         if (!pendingActivations.isEmpty()) {
             map.put("_pendingActivations", pendingActivations.toMapList());
+        }
+        
+        // 序列化主文件的元数据更新（转换为 Map 格式）
+        fileMetadata.getPrimaryMetadata().ifPresent(update -> {
+            if (update.hasUpdates()) {
+                Map<String, Object> updateMap = new HashMap<>();
+                if (update.filename() != null) {
+                    updateMap.put("filename", update.filename());
+                }
+                if (update.contentType() != null) {
+                    updateMap.put("contentType", update.contentType());
+                }
+                if (update.tags() != null) {
+                    updateMap.put("tags", update.tags().tags());
+                }
+                if (update.customMetadata() != null) {
+                    updateMap.put("customMetadata", update.customMetadata().customMetadata());
+                }
+                // 使用 _primaryMetadata 避免与旧的 KEY_METADATA_UPDATE 冲突
+                map.put("_primaryMetadata", updateMap);
+            }
+        });
+        
+        // 序列化衍生文件的元数据更新
+        if (fileMetadata.hasDerivedFileMetadataUpdates()) {
+            Map<String, FileMetadataUpdate> derivedMetadata = fileMetadata.getAllDerivedFileMetadata();
+            // 转换为可序列化的Map格式（避免直接存储FileMetadataUpdate对象）
+            Map<String, Map<String, Object>> serializedDerivedMetadata = new HashMap<>();
+            for (Map.Entry<String, FileMetadataUpdate> entry : derivedMetadata.entrySet()) {
+                String fKey = entry.getKey();
+                FileMetadataUpdate update = entry.getValue();
+                if (update != null && update.hasUpdates()) {
+                    Map<String, Object> updateMap = new HashMap<>();
+                    if (update.filename() != null) {
+                        updateMap.put("filename", update.filename());
+                    }
+                    if (update.contentType() != null) {
+                        updateMap.put("contentType", update.contentType());
+                    }
+                    if (update.tags() != null) {
+                        updateMap.put("tags", update.tags().tags());
+                    }
+                    if (update.customMetadata() != null) {
+                        updateMap.put("customMetadata", update.customMetadata().customMetadata());
+                    }
+                    serializedDerivedMetadata.put(fKey, updateMap);
+                }
+            }
+            if (!serializedDerivedMetadata.isEmpty()) {
+                map.put("_derivedFileMetadata", serializedDerivedMetadata);
+            }
         }
         
         return map;

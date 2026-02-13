@@ -112,9 +112,12 @@ public class DefaultPluginStorageService implements PluginStorageService {
     
     /**
      * 生成衍生文件的 fKey
+     * <p>
+     * 格式：UUID（32字符，不含连字符），符合数据库字段长度限制（36字符）
      */
     private String generateDerivedFileKey() {
-        return "derived_" + UUID.randomUUID().toString().replace("-", "");
+        // 直接使用 UUID（去掉连字符后32字符），不加前缀避免超过字段长度
+        return UUID.randomUUID().toString().replace("-", "");
     }
 
     @Override
